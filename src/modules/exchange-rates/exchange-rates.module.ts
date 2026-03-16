@@ -6,13 +6,18 @@ import { ExchangeRatesResolver } from './presentation';
 
 @Module({
   providers: [
+    TypeOrmExchangeRateRepository,
     ExchangeRatesService,
     ExchangeRatesResolver,
     {
       provide: EXCHANGE_RATE_REPOSITORY,
-      useClass: TypeOrmExchangeRateRepository,
+      useExisting: TypeOrmExchangeRateRepository,
     },
   ],
-  exports: [ExchangeRatesService, EXCHANGE_RATE_REPOSITORY],
+  exports: [
+    ExchangeRatesService,
+    EXCHANGE_RATE_REPOSITORY,
+    TypeOrmExchangeRateRepository,
+  ],
 })
 export class ExchangeRatesModule {}

@@ -8,7 +8,7 @@ export function createDatabaseOptions(): DataSourceOptions {
     username: process.env.DB_USERNAME ?? 'postgres',
     password: process.env.DB_PASSWORD ?? 'postgres',
     database: process.env.DB_DATABASE ?? 'digital_bank',
-    entities: ['dist/**/*.entity{.ts,.js}'],
+    entities: ['dist/**/*.orm-entity{.ts,.js}'],
     migrations: ['dist/migrations/*{.ts,.js}'],
     synchronize: false,
     logging: false,

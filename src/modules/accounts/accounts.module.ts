@@ -8,13 +8,14 @@ import { AccountsResolver } from './presentation';
 @Module({
   imports: [ClientsModule],
   providers: [
+    TypeOrmAccountRepository,
     AccountsService,
     AccountsResolver,
     {
       provide: ACCOUNT_REPOSITORY,
-      useClass: TypeOrmAccountRepository,
+      useExisting: TypeOrmAccountRepository,
     },
   ],
-  exports: [AccountsService, ACCOUNT_REPOSITORY],
+  exports: [AccountsService, ACCOUNT_REPOSITORY, TypeOrmAccountRepository],
 })
 export class AccountsModule {}

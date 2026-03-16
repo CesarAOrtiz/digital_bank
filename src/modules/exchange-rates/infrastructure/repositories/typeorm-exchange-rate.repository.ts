@@ -1,5 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { DataSource, Repository } from 'typeorm';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { TYPEORM_DATA_SOURCE } from '../../../../common/infrastructure/database.tokens';
 import { Currency } from '../../../../common/domain/enums';
 import { ExchangeRate, ExchangeRateRepository } from '../../domain';
@@ -8,11 +8,20 @@ import { ExchangeRateOrmMapper } from '../mappers/exchange-rate.orm-mapper';
 
 @Injectable()
 export class TypeOrmExchangeRateRepository implements ExchangeRateRepository {
-  constructor(@Inject(TYPEORM_DATA_SOURCE) private readonly dataSource: DataSource) {}
+  constructor(
+    @Inject(TYPEORM_DATA_SOURCE) private readonly dataSource: DataSource,
+    @Optional() private readonly entityManager?: EntityManager,
+  ) {}
+
+  withManager(entityManager: EntityManager): TypeOrmExchangeRateRepository {
+    return new TypeOrmExchangeRateRepository(this.dataSource, entityManager);
+  }
 
   async save(exchangeRate: ExchangeRate): Promise<ExchangeRate> {
     const repository = await this.getRepository();
-    return ExchangeRateOrmMapper.toDomain(await repository.save(ExchangeRateOrmMapper.toOrm(exchangeRate)));
+    return ExchangeRateOrmMapper.toDomain(
+      await repository.save(ExchangeRateOrmMapper.toOrm(exchangeRate)),
+    );
   }
 
   async findAll(): Promise<ExchangeRate[]> {
@@ -26,13 +35,19 @@ export class TypeOrmExchangeRateRepository implements ExchangeRateRepository {
     ).map(ExchangeRateOrmMapper.toDomain);
   }
 
-  async findLatest(baseCurrency: Currency, targetCurrency: Currency, effectiveAt: Date): Promise<ExchangeRate | null> {
+  async findLatest(
+    baseCurrency: Currency,
+    targetCurrency: Currency,
+    effectiveAt: Date,
+  ): Promise<ExchangeRate | null> {
     const repository = await this.getRepository();
     const entity =
       (await repository
         .createQueryBuilder('exchangeRate')
         .where('exchangeRate.baseCurrency = :baseCurrency', { baseCurrency })
-        .andWhere('exchangeRate.targetCurrency = :targetCurrency', { targetCurrency })
+        .andWhere('exchangeRate.targetCurrency = :targetCurrency', {
+          targetCurrency,
+        })
         .andWhere('exchangeRate.effectiveAt <= :effectiveAt', { effectiveAt })
         .orderBy('exchangeRate.effectiveAt', 'DESC')
         .getOne()) ?? null;
@@ -41,6 +56,10 @@ export class TypeOrmExchangeRateRepository implements ExchangeRateRepository {
   }
 
   private async getRepository(): Promise<Repository<ExchangeRateOrmEntity>> {
+    if (this.entityManager) {
+      return this.entityManager.getRepository(ExchangeRateOrmEntity);
+    }
+
     if (!this.dataSource.isInitialized) {
       await this.dataSource.initialize();
     }
