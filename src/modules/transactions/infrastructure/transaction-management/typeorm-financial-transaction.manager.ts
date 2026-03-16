@@ -1,14 +1,14 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { TYPEORM_DATA_SOURCE } from '../../../common/infrastructure/database.tokens';
-import { TypeOrmAccountRepository } from '../../accounts/infrastructure';
-import { TypeOrmExchangeRateRepository } from '../../exchange-rates/infrastructure';
+import { TYPEORM_DATA_SOURCE } from '../../../../common/infrastructure/database.tokens';
+import { TypeOrmAccountRepository } from '../../../accounts/infrastructure';
+import { TypeOrmExchangeRateRepository } from '../../../exchange-rates/infrastructure';
 import type {
   FinancialTransactionContext,
   FinancialTransactionManager,
   FinancialTransactionOptions,
-} from '../application/contracts/financial-transaction-manager.contract';
-import { TypeOrmTransactionRepository } from './index';
+} from '../../application/contracts/financial-transaction-manager.contract';
+import { TypeOrmTransactionRepository } from '../index';
 
 @Injectable()
 export class TypeOrmFinancialTransactionManager implements FinancialTransactionManager {

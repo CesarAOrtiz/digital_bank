@@ -6,7 +6,7 @@ import {
 import { AccountsModule } from '../accounts/accounts.module';
 import { ExchangeRatesModule } from '../exchange-rates/exchange-rates.module';
 import { TransactionsService } from './application/transactions.service';
-import { TypeOrmFinancialTransactionManager } from './infrastructure/typeorm-financial-transaction.manager';
+import { TypeOrmFinancialTransactionManager } from './infrastructure/transaction-management/typeorm-financial-transaction.manager';
 import { TypeOrmTransactionRepository } from './infrastructure';
 import { TransactionsResolver } from './presentation';
 
