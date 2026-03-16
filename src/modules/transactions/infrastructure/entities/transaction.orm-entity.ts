@@ -9,7 +9,7 @@ import { Currency, TransactionType } from '../../../../common/domain/enums';
 
 @Entity('transactions')
 @Index(['type', 'createdAt'])
-@Index(['idempotencyKey'], {
+@Index(['type', 'idempotencyKey'], {
   unique: true,
   where: '"idempotencyKey" IS NOT NULL',
 })

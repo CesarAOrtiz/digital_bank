@@ -1,6 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { TYPEORM_DATA_SOURCE } from '../../../../common/infrastructure/database.tokens';
+import { TransactionType } from '../../../../common/domain/enums';
 import { Transaction } from '../../domain';
 import type {
   TransactionRepository,
@@ -46,9 +47,10 @@ export class TypeOrmTransactionRepository implements TransactionRepository {
 
   async findByIdempotencyKey(
     idempotencyKey: string,
+    type: TransactionType,
   ): Promise<Transaction | null> {
     const repository = await this.getRepository();
-    const entity = await repository.findOne({ where: { idempotencyKey } });
+    const entity = await repository.findOne({ where: { idempotencyKey, type } });
     return entity ? TransactionOrmMapper.toDomain(entity) : null;
   }
 

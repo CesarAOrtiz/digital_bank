@@ -48,12 +48,14 @@ export class TransactionsService {
       {
         operationName: 'deposit',
         lockAccountIds: [data.accountId],
+        type: TransactionType.DEPOSIT,
         idempotencyKey: data.idempotencyKey,
       },
       async ({ accountRepository, transactionRepository }) => {
         const existing = await this.findByIdempotencyKey(
           transactionRepository,
           data.idempotencyKey,
+          TransactionType.DEPOSIT,
         );
         if (existing) {
           this.assertDepositMatches(existing, data);
@@ -94,12 +96,14 @@ export class TransactionsService {
       {
         operationName: 'withdraw',
         lockAccountIds: [data.accountId],
+        type: TransactionType.WITHDRAWAL,
         idempotencyKey: data.idempotencyKey,
       },
       async ({ accountRepository, transactionRepository }) => {
         const existing = await this.findByIdempotencyKey(
           transactionRepository,
           data.idempotencyKey,
+          TransactionType.WITHDRAWAL,
         );
         if (existing) {
           this.assertWithdrawalMatches(existing, data);
@@ -149,6 +153,7 @@ export class TransactionsService {
       {
         operationName: 'transfer',
         lockAccountIds: [data.sourceAccountId, data.destinationAccountId],
+        type: TransactionType.TRANSFER,
         idempotencyKey: data.idempotencyKey,
       },
       async ({
@@ -159,6 +164,7 @@ export class TransactionsService {
         const existing = await this.findByIdempotencyKey(
           transactionRepository,
           data.idempotencyKey,
+          TransactionType.TRANSFER,
         );
         if (existing) {
           this.assertTransferMatches(existing, data);
@@ -259,18 +265,20 @@ export class TransactionsService {
   private async findByIdempotencyKey(
     transactionRepository: TransactionRepository,
     idempotencyKey?: string,
+    type?: TransactionType,
   ) {
-    if (!idempotencyKey) {
+    if (!idempotencyKey || !type) {
       return null;
     }
 
-    return transactionRepository.findByIdempotencyKey(idempotencyKey);
+    return transactionRepository.findByIdempotencyKey(idempotencyKey, type);
   }
 
   private async executeIdempotentTransaction(
     options: {
       operationName: string;
       lockAccountIds: string[];
+      type: TransactionType;
       idempotencyKey?: string;
     },
     execute: (context: FinancialTransactionContext) => Promise<Transaction>,
@@ -291,6 +299,7 @@ export class TransactionsService {
 
       const existing = await this.transactionRepository.findByIdempotencyKey(
         options.idempotencyKey!,
+        options.type,
       );
       if (!existing) {
         throw error;
