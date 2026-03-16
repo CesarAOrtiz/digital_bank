@@ -17,7 +17,17 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js -d src/config/typeorm-cli.config.ts",
+    "typeorm:dist": "node ./node_modules/typeorm/cli.js -d dist/config/typeorm-cli-prod.config.js",
+    "migration:create": "npm run typeorm -- migration:create src/migrations/%npm_config_name%",
+    "migration:generate": "npm run typeorm -- migration:generate src/migrations/%npm_config_name%",
+    "migration:run": "npm run build && npm run typeorm:dist -- migration:run",
+    "migration:revert": "npm run build && npm run typeorm:dist -- migration:revert",
+    "migration:show": "npm run build && npm run typeorm:dist -- migration:show",
+    "migration:run:dev": "npm run typeorm -- migration:run",
+    "migration:revert:dev": "npm run typeorm -- migration:revert",
+    "migration:show:dev": "npm run typeorm -- migration:show"
   },
   "dependencies": {
     "@apollo/server": "^5.4.0",

@@ -1,6 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { formatMoney, formatRate, roundMoney, toDecimal } from '../../../common/application/money';
+import {
+  formatMoney,
+  formatRate,
+  roundMoney,
+  toDecimal,
+} from '../../../common/application/money';
 import { TransactionType } from '../../../common/domain/enums';
 import {
   DomainRuleViolationException,
@@ -8,15 +13,15 @@ import {
   ResourceNotFoundException,
 } from '../../../common/domain/exceptions';
 import {
-  ACCOUNT_REPOSITORY,
-  EXCHANGE_RATE_REPOSITORY,
   FINANCIAL_TRANSACTION_MANAGER,
   TRANSACTION_REPOSITORY,
 } from '../../../common/infrastructure/repository.tokens';
 import type { AccountRepository } from '../../accounts/domain';
-import type { ExchangeRateRepository } from '../../exchange-rates/domain';
 import { Transaction } from '../domain';
-import type { TransactionRepository, TransactionSearchFilters } from '../domain';
+import type {
+  TransactionRepository,
+  TransactionSearchFilters,
+} from '../domain';
 import type { FinancialTransactionManager } from './contracts/financial-transaction-manager.contract';
 import type { DepositTransactionInput } from './inputs/deposit-transaction.input';
 import type { TransferTransactionInput } from './inputs/transfer-transaction.input';
@@ -29,10 +34,6 @@ export class TransactionsService {
   constructor(
     @Inject(TRANSACTION_REPOSITORY)
     private readonly transactionRepository: TransactionRepository,
-    @Inject(ACCOUNT_REPOSITORY)
-    private readonly accountRepository: AccountRepository,
-    @Inject(EXCHANGE_RATE_REPOSITORY)
-    private readonly exchangeRateRepository: ExchangeRateRepository,
     @Inject(FINANCIAL_TRANSACTION_MANAGER)
     private readonly financialTransactionManager: FinancialTransactionManager,
   ) {}
@@ -45,12 +46,18 @@ export class TransactionsService {
         lockAccountIds: [data.accountId],
       },
       async ({ accountRepository, transactionRepository }) => {
-        const existing = await this.findByIdempotencyKey(transactionRepository, data.idempotencyKey);
+        const existing = await this.findByIdempotencyKey(
+          transactionRepository,
+          data.idempotencyKey,
+        );
         if (existing) {
           return existing;
         }
 
-        const account = await this.requireAccount(accountRepository, data.accountId);
+        const account = await this.requireAccount(
+          accountRepository,
+          data.accountId,
+        );
         const updatedAccount = account.deposit(data.amount);
         await accountRepository.save(updatedAccount);
 
@@ -82,12 +89,18 @@ export class TransactionsService {
         lockAccountIds: [data.accountId],
       },
       async ({ accountRepository, transactionRepository }) => {
-        const existing = await this.findByIdempotencyKey(transactionRepository, data.idempotencyKey);
+        const existing = await this.findByIdempotencyKey(
+          transactionRepository,
+          data.idempotencyKey,
+        );
         if (existing) {
           return existing;
         }
 
-        const account = await this.requireAccount(accountRepository, data.accountId);
+        const account = await this.requireAccount(
+          accountRepository,
+          data.accountId,
+        );
         const updatedAccount = account.withdraw(data.amount);
         await accountRepository.save(updatedAccount);
 
@@ -113,7 +126,9 @@ export class TransactionsService {
 
   async transfer(data: TransferTransactionInput): Promise<Transaction> {
     if (data.sourceAccountId === data.destinationAccountId) {
-      throw new DomainRuleViolationException('Source and destination accounts must differ.');
+      throw new DomainRuleViolationException(
+        'Source and destination accounts must differ.',
+      );
     }
 
     this.logger.log(
@@ -125,20 +140,36 @@ export class TransactionsService {
         operationName: 'transfer',
         lockAccountIds: [data.sourceAccountId, data.destinationAccountId],
       },
-      async ({ accountRepository, exchangeRateRepository, transactionRepository }) => {
-        const existing = await this.findByIdempotencyKey(transactionRepository, data.idempotencyKey);
+      async ({
+        accountRepository,
+        exchangeRateRepository,
+        transactionRepository,
+      }) => {
+        const existing = await this.findByIdempotencyKey(
+          transactionRepository,
+          data.idempotencyKey,
+        );
         if (existing) {
           return existing;
         }
 
-        const sourceAccount = await this.requireAccount(accountRepository, data.sourceAccountId);
-        const destinationAccount = await this.requireAccount(accountRepository, data.destinationAccountId);
+        const sourceAccount = await this.requireAccount(
+          accountRepository,
+          data.sourceAccountId,
+        );
+        const destinationAccount = await this.requireAccount(
+          accountRepository,
+          data.destinationAccountId,
+        );
 
         const debitedSource = sourceAccount.withdraw(data.amount);
         let destinationAmount = formatMoney(data.amount);
         let exchangeRateUsed: string | null = null;
 
-        if (sourceAccount.toPrimitives().currency !== destinationAccount.toPrimitives().currency) {
+        if (
+          sourceAccount.toPrimitives().currency !==
+          destinationAccount.toPrimitives().currency
+        ) {
           const exchangeRate = await exchangeRateRepository.findLatest(
             sourceAccount.toPrimitives().currency,
             destinationAccount.toPrimitives().currency,
@@ -152,11 +183,14 @@ export class TransactionsService {
             );
           }
 
-          destinationAmount = formatMoney(roundMoney(toDecimal(data.amount).mul(exchangeRate.rate)));
+          destinationAmount = formatMoney(
+            roundMoney(toDecimal(data.amount).mul(exchangeRate.rate)),
+          );
           exchangeRateUsed = formatRate(exchangeRate.rate);
         }
 
-        const creditedDestination = destinationAccount.deposit(destinationAmount);
+        const creditedDestination =
+          destinationAccount.deposit(destinationAmount);
         await accountRepository.save(debitedSource);
         await accountRepository.save(creditedDestination);
 
@@ -197,7 +231,10 @@ export class TransactionsService {
     return transaction;
   }
 
-  private async requireAccount(accountRepository: AccountRepository, id: string) {
+  private async requireAccount(
+    accountRepository: AccountRepository,
+    id: string,
+  ) {
     const account = await accountRepository.findById(id);
     if (!account) {
       throw new ResourceNotFoundException(`Account ${id} not found.`);
@@ -206,7 +243,10 @@ export class TransactionsService {
     return account;
   }
 
-  private async findByIdempotencyKey(transactionRepository: TransactionRepository, idempotencyKey?: string) {
+  private async findByIdempotencyKey(
+    transactionRepository: TransactionRepository,
+    idempotencyKey?: string,
+  ) {
     if (!idempotencyKey) {
       return null;
     }

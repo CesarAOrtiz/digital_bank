@@ -1,15 +1,49 @@
 import { DataSourceOptions } from 'typeorm';
+import { AccountOrmEntity } from '../modules/accounts/infrastructure';
+import { ClientOrmEntity } from '../modules/clients/infrastructure';
+import { ExchangeRateOrmEntity } from '../modules/exchange-rates/infrastructure';
+import { TransactionOrmEntity } from '../modules/transactions/infrastructure';
+import { join } from 'path';
 
-export function createDatabaseOptions(): DataSourceOptions {
+export const ormEntities = [
+  ClientOrmEntity,
+  AccountOrmEntity,
+  ExchangeRateOrmEntity,
+  TransactionOrmEntity,
+];
+
+export type DatabaseConfigMode =
+  | 'development-cli'
+  | 'production-cli'
+  | 'runtime';
+
+function resolveMigrations(mode: DatabaseConfigMode): string[] {
+  if (mode === 'production-cli') {
+    return [join('dist', 'migrations', '*.js')];
+  }
+
+  if (mode === 'development-cli') {
+    return [join('src', 'migrations', '*.ts')];
+  }
+
+  return [
+    join('src', 'migrations', '*.ts'),
+    join('dist', 'migrations', '*.js'),
+  ];
+}
+
+export function createDatabaseOptions(
+  mode: DatabaseConfigMode = 'runtime',
+): DataSourceOptions {
   return {
     type: 'postgres',
-    host: process.env.DB_HOST ?? 'localhost',
-    port: Number(process.env.DB_PORT ?? 5432),
-    username: process.env.DB_USERNAME ?? 'postgres',
-    password: process.env.DB_PASSWORD ?? 'postgres',
-    database: process.env.DB_DATABASE ?? 'digital_bank',
-    entities: ['dist/**/*.orm-entity{.ts,.js}'],
-    migrations: ['dist/migrations/*{.ts,.js}'],
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT),
+    username: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE,
+    entities: ormEntities,
+    migrations: resolveMigrations(mode),
     synchronize: false,
     logging: false,
   };
