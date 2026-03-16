@@ -72,6 +72,15 @@ export class DuplicateClientException extends DuplicateResourceException {
   }
 }
 
+export class IdempotencyKeyReuseException extends ConflictException {
+  constructor() {
+    super({
+      message: 'Idempotency key was already used with a different request payload.',
+      errorCode: 'IDEMPOTENCY_KEY_REUSE',
+    } satisfies ErrorPayload);
+  }
+}
+
 export class ExchangeRateNotConfiguredException extends BadRequestException {
   constructor(baseCurrency: string, targetCurrency: string) {
     super({

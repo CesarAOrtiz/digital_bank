@@ -10,6 +10,7 @@ import { TransactionType } from '../../../common/domain/enums';
 import {
   DomainRuleViolationException,
   ExchangeRateNotConfiguredException,
+  IdempotencyKeyReuseException,
   ResourceNotFoundException,
 } from '../../../common/domain/exceptions';
 import {
@@ -22,7 +23,10 @@ import type {
   TransactionRepository,
   TransactionSearchFilters,
 } from '../domain';
-import type { FinancialTransactionManager } from './contracts/financial-transaction-manager.contract';
+import type {
+  FinancialTransactionContext,
+  FinancialTransactionManager,
+} from './contracts/financial-transaction-manager.contract';
 import type { DepositTransactionInput } from './inputs/deposit-transaction.input';
 import type { TransferTransactionInput } from './inputs/transfer-transaction.input';
 import type { WithdrawTransactionInput } from './inputs/withdraw-transaction.input';
@@ -40,10 +44,11 @@ export class TransactionsService {
 
   async deposit(data: DepositTransactionInput): Promise<Transaction> {
     this.logger.log(`Deposit requested for account ${data.accountId}`);
-    return this.financialTransactionManager.execute(
+    return this.executeIdempotentTransaction(
       {
         operationName: 'deposit',
         lockAccountIds: [data.accountId],
+        idempotencyKey: data.idempotencyKey,
       },
       async ({ accountRepository, transactionRepository }) => {
         const existing = await this.findByIdempotencyKey(
@@ -51,6 +56,7 @@ export class TransactionsService {
           data.idempotencyKey,
         );
         if (existing) {
+          this.assertDepositMatches(existing, data);
           return existing;
         }
 
@@ -73,20 +79,22 @@ export class TransactionsService {
             destinationAmount: formatMoney(data.amount),
             exchangeRateUsed: null,
             idempotencyKey: data.idempotencyKey ?? null,
-            description: data.description?.trim() || null,
+            description: this.normalizeDescription(data.description),
             createdAt: new Date(),
           }),
         );
       },
+      (existing) => this.assertDepositMatches(existing, data),
     );
   }
 
   async withdraw(data: WithdrawTransactionInput): Promise<Transaction> {
     this.logger.log(`Withdrawal requested for account ${data.accountId}`);
-    return this.financialTransactionManager.execute(
+    return this.executeIdempotentTransaction(
       {
         operationName: 'withdraw',
         lockAccountIds: [data.accountId],
+        idempotencyKey: data.idempotencyKey,
       },
       async ({ accountRepository, transactionRepository }) => {
         const existing = await this.findByIdempotencyKey(
@@ -94,6 +102,7 @@ export class TransactionsService {
           data.idempotencyKey,
         );
         if (existing) {
+          this.assertWithdrawalMatches(existing, data);
           return existing;
         }
 
@@ -116,11 +125,12 @@ export class TransactionsService {
             destinationAmount: null,
             exchangeRateUsed: null,
             idempotencyKey: data.idempotencyKey ?? null,
-            description: data.description?.trim() || null,
+            description: this.normalizeDescription(data.description),
             createdAt: new Date(),
           }),
         );
       },
+      (existing) => this.assertWithdrawalMatches(existing, data),
     );
   }
 
@@ -135,10 +145,11 @@ export class TransactionsService {
       `Transfer requested from ${data.sourceAccountId} to ${data.destinationAccountId}`,
     );
 
-    return this.financialTransactionManager.execute(
+    return this.executeIdempotentTransaction(
       {
         operationName: 'transfer',
         lockAccountIds: [data.sourceAccountId, data.destinationAccountId],
+        idempotencyKey: data.idempotencyKey,
       },
       async ({
         accountRepository,
@@ -150,6 +161,7 @@ export class TransactionsService {
           data.idempotencyKey,
         );
         if (existing) {
+          this.assertTransferMatches(existing, data);
           return existing;
         }
 
@@ -206,11 +218,12 @@ export class TransactionsService {
             destinationAmount,
             exchangeRateUsed,
             idempotencyKey: data.idempotencyKey ?? null,
-            description: data.description?.trim() || null,
+            description: this.normalizeDescription(data.description),
             createdAt: new Date(),
           }),
         );
       },
+      (existing) => this.assertTransferMatches(existing, data),
     );
   }
 
@@ -252,5 +265,137 @@ export class TransactionsService {
     }
 
     return transactionRepository.findByIdempotencyKey(idempotencyKey);
+  }
+
+  private async executeIdempotentTransaction(
+    options: {
+      operationName: string;
+      lockAccountIds: string[];
+      idempotencyKey?: string;
+    },
+    execute: (context: FinancialTransactionContext) => Promise<Transaction>,
+    assertMatches: (existing: Transaction) => void,
+  ): Promise<Transaction> {
+    try {
+      return await this.financialTransactionManager.execute(
+        {
+          operationName: options.operationName,
+          lockAccountIds: options.lockAccountIds,
+        },
+        execute,
+      );
+    } catch (error) {
+      if (!this.isIdempotencyRace(error, options.idempotencyKey)) {
+        throw error;
+      }
+
+      const existing = await this.transactionRepository.findByIdempotencyKey(
+        options.idempotencyKey!,
+      );
+      if (!existing) {
+        throw error;
+      }
+
+      assertMatches(existing);
+      return existing;
+    }
+  }
+
+  private assertDepositMatches(
+    transaction: Transaction,
+    data: DepositTransactionInput,
+  ): void {
+    this.assertSingleAccountTransactionMatches(transaction, {
+      type: TransactionType.DEPOSIT,
+      accountId: data.accountId,
+      amount: data.amount,
+      description: data.description,
+      accountSide: 'destination',
+    });
+  }
+
+  private assertWithdrawalMatches(
+    transaction: Transaction,
+    data: WithdrawTransactionInput,
+  ): void {
+    this.assertSingleAccountTransactionMatches(transaction, {
+      type: TransactionType.WITHDRAWAL,
+      accountId: data.accountId,
+      amount: data.amount,
+      description: data.description,
+      accountSide: 'source',
+    });
+  }
+
+  private assertSingleAccountTransactionMatches(
+    transaction: Transaction,
+    options: {
+      type: TransactionType.DEPOSIT | TransactionType.WITHDRAWAL;
+      accountId: string;
+      amount: string;
+      description?: string | null;
+      accountSide: 'source' | 'destination';
+    },
+  ): void {
+    const existing = transaction.toPrimitives();
+    const normalizedAmount = formatMoney(options.amount);
+    const normalizedDescription = this.normalizeDescription(
+      options.description,
+    );
+
+    const expectedSourceAccountId =
+      options.accountSide === 'source' ? options.accountId : null;
+    const expectedDestinationAccountId =
+      options.accountSide === 'destination' ? options.accountId : null;
+    const expectedDestinationAmount =
+      options.accountSide === 'destination' ? normalizedAmount : null;
+
+    if (
+      existing.type !== options.type ||
+      existing.sourceAccountId !== expectedSourceAccountId ||
+      existing.destinationAccountId !== expectedDestinationAccountId ||
+      existing.sourceAmount !== normalizedAmount ||
+      existing.destinationAmount !== expectedDestinationAmount ||
+      existing.description !== normalizedDescription
+    ) {
+      throw new IdempotencyKeyReuseException();
+    }
+  }
+
+  private assertTransferMatches(
+    transaction: Transaction,
+    data: TransferTransactionInput,
+  ): void {
+    const existing = transaction.toPrimitives();
+    if (
+      existing.type !== TransactionType.TRANSFER ||
+      existing.sourceAccountId !== data.sourceAccountId ||
+      existing.destinationAccountId !== data.destinationAccountId ||
+      existing.sourceAmount !== formatMoney(data.amount) ||
+      existing.description !== this.normalizeDescription(data.description)
+    ) {
+      throw new IdempotencyKeyReuseException();
+    }
+  }
+
+  private isIdempotencyRace(error: unknown, idempotencyKey?: string): boolean {
+    if (!idempotencyKey || typeof error !== 'object' || !error) {
+      return false;
+    }
+
+    const driverError = (
+      error as { driverError?: { code?: string; detail?: string } }
+    ).driverError;
+    const message = error instanceof Error ? error.message : '';
+
+    return (
+      driverError?.code === '23505' &&
+      (driverError.detail?.includes('idempotencyKey') ||
+        message.includes('idempotencyKey'))
+    );
+  }
+
+  private normalizeDescription(description?: string | null): string | null {
+    return description?.trim() || null;
   }
 }
