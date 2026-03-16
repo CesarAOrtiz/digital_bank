@@ -6,17 +6,19 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { GraphqlExceptionFilter } from './common/presentation/graphql-exception.filter';
+import { DatabaseModule } from './common/infrastructure/database.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { AccountsModule } from './modules/accounts/accounts.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.module';
-import { GraphqlExceptionFilter } from './common/infrastructure/graphql-exception.filter';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    DatabaseModule,
     ClientsModule,
     AccountsModule,
     TransactionsModule,
