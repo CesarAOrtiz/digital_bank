@@ -89,9 +89,13 @@ type Mutation {
 type Query {
   account(id: ID!): Account!
   accounts: [Account!]!
+  accountsByClient(clientId: ID!): [Account!]!
   client(id: ID!): Client!
   clients: [Client!]!
+  exchangeRate(baseCurrency: Currency!, targetCurrency: Currency!): ExchangeRate!
   exchangeRates: [ExchangeRate!]!
+  searchAccounts(term: String!): [Account!]!
+  searchClients(term: String!): [Client!]!
   searchTransactions(filters: SearchTransactionsInput): [Transaction!]!
   transaction(id: ID!): Transaction!
   transactions: [Transaction!]!

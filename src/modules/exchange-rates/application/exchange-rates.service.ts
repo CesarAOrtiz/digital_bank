@@ -2,7 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { formatRate } from '../../../common/application/money';
 import { Currency } from '../../../common/domain/enums';
-import { DomainRuleViolationException } from '../../../common/domain/exceptions';
+import {
+  DomainRuleViolationException,
+  ExchangeRateNotConfiguredException,
+} from '../../../common/domain/exceptions';
 import { EXCHANGE_RATE_REPOSITORY } from '../../../common/infrastructure/repository.tokens';
 import { ExchangeRate } from '../domain';
 import type { ExchangeRateRepository } from '../domain';
@@ -38,5 +41,28 @@ export class ExchangeRatesService {
 
   findLatest(baseCurrency: Currency, targetCurrency: Currency, effectiveAt: Date): Promise<ExchangeRate | null> {
     return this.exchangeRateRepository.findLatest(baseCurrency, targetCurrency, effectiveAt);
+  }
+
+  async findCurrent(
+    baseCurrency: Currency,
+    targetCurrency: Currency,
+  ): Promise<ExchangeRate> {
+    if (baseCurrency === targetCurrency) {
+      throw new DomainRuleViolationException(
+        'Exchange rate base and target currencies must differ.',
+      );
+    }
+
+    const rate = await this.exchangeRateRepository.findLatest(
+      baseCurrency,
+      targetCurrency,
+      new Date(),
+    );
+
+    if (!rate) {
+      throw new ExchangeRateNotConfiguredException(baseCurrency, targetCurrency);
+    }
+
+    return rate;
   }
 }

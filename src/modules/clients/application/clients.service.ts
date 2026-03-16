@@ -47,6 +47,10 @@ export class ClientsService {
     return this.clientRepository.findAll();
   }
 
+  search(term: string): Promise<Client[]> {
+    return this.clientRepository.search(term.trim());
+  }
+
   async findOne(id: string): Promise<Client> {
     const client = await this.clientRepository.findById(id);
     if (!client) {

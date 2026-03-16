@@ -63,6 +63,26 @@ export class AccountsService {
     return this.accountRepository.findAll();
   }
 
+  findByClient(clientId: string): Promise<Account[]> {
+    return this.accountRepository.findByClientId(clientId.trim());
+  }
+
+  async findByAccountNumber(accountNumber: string): Promise<Account> {
+    const account = await this.accountRepository.findByAccountNumber(
+      accountNumber.trim(),
+    );
+    if (!account) {
+      throw new ResourceNotFoundException(
+        `Account ${accountNumber} not found.`,
+      );
+    }
+    return account;
+  }
+
+  search(term: string): Promise<Account[]> {
+    return this.accountRepository.search(term.trim());
+  }
+
   async findOne(id: string): Promise<Account> {
     const account = await this.accountRepository.findById(id);
     if (!account) {

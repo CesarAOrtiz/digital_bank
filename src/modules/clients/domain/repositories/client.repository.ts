@@ -6,4 +6,5 @@ export interface ClientRepository {
   findById(id: string): Promise<Client | null>;
   findByEmail(email: string): Promise<Client | null>;
   findByDocumentNumber(documentNumber: string): Promise<Client | null>;
+  search(term: string): Promise<Client[]>;
 }

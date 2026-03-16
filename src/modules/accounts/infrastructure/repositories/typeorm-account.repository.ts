@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, ILike, Repository } from 'typeorm';
 import { TYPEORM_DATA_SOURCE } from '../../../../common/infrastructure/database.tokens';
 import { Account, AccountRepository } from '../../domain';
 import { AccountOrmEntity } from '../entities/account.orm-entity';
@@ -52,6 +52,29 @@ export class TypeOrmAccountRepository implements AccountRepository {
     const repository = await this.getRepository();
     const entity = await repository.findOne({ where: { accountNumber } });
     return entity ? AccountOrmMapper.toDomain(entity) : null;
+  }
+
+  async findByClientId(clientId: string): Promise<Account[]> {
+    const repository = await this.getRepository();
+    return (
+      await repository.find({
+        where: { clientId },
+        order: { createdAt: 'DESC' },
+      })
+    ).map(AccountOrmMapper.toDomain);
+  }
+
+  async search(term: string): Promise<Account[]> {
+    const repository = await this.getRepository();
+    return (
+      await repository.find({
+        where: [
+          { accountNumber: ILike(`%${term}%`) },
+          { clientId: ILike(`%${term}%`) },
+        ],
+        order: { createdAt: 'DESC' },
+      })
+    ).map(AccountOrmMapper.toDomain);
   }
 
   private async getRepository(): Promise<Repository<AccountOrmEntity>> {

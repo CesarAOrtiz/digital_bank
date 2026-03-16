@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, ILike, Repository } from 'typeorm';
 import { TYPEORM_DATA_SOURCE } from '../../../../common/infrastructure/database.tokens';
 import { Client, ClientRepository } from '../../domain';
 import { ClientOrmEntity } from '../entities/client.orm-entity';
@@ -44,6 +44,21 @@ export class TypeOrmClientRepository implements ClientRepository {
     const repository = await this.getRepository();
     const entity = await repository.findOne({ where: { documentNumber } });
     return entity ? ClientOrmMapper.toDomain(entity) : null;
+  }
+
+  async search(term: string): Promise<Client[]> {
+    const repository = await this.getRepository();
+    return (
+      await repository.find({
+        where: [
+          { firstName: ILike(`%${term}%`) },
+          { lastName: ILike(`%${term}%`) },
+          { email: ILike(`%${term}%`) },
+          { documentNumber: ILike(`%${term}%`) },
+        ],
+        order: { createdAt: 'DESC' },
+      })
+    ).map(ClientOrmMapper.toDomain);
   }
 
   private async getRepository(): Promise<Repository<ClientOrmEntity>> {

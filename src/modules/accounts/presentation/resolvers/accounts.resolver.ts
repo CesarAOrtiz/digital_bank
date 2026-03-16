@@ -19,8 +19,17 @@ export class AccountsResolver {
 
   @Query(() => [AccountGraphqlModel], { name: 'accounts' })
   async findAccounts(): Promise<AccountGraphqlModel[]> {
-    return (await this.accountsService.findAll()).map((account) =>
-      AccountGraphqlMapper.toModel(account),
+    return (await this.accountsService.findAll()).map(
+      AccountGraphqlMapper.toModel,
+    );
+  }
+
+  @Query(() => [AccountGraphqlModel], { name: 'accountsByClient' })
+  async findAccountsByClient(
+    @Args('clientId', { type: () => ID }) clientId: string,
+  ): Promise<AccountGraphqlModel[]> {
+    return (await this.accountsService.findByClient(clientId)).map(
+      AccountGraphqlMapper.toModel,
     );
   }
 
@@ -29,5 +38,23 @@ export class AccountsResolver {
     @Args('id', { type: () => ID }) id: string,
   ): Promise<AccountGraphqlModel> {
     return AccountGraphqlMapper.toModel(await this.accountsService.findOne(id));
+  }
+
+  @Query(() => AccountGraphqlModel, { name: 'account' })
+  async findAccountByAccountNumber(
+    @Args('accountNumber') accountNumber: string,
+  ): Promise<AccountGraphqlModel> {
+    return AccountGraphqlMapper.toModel(
+      await this.accountsService.findByAccountNumber(accountNumber),
+    );
+  }
+
+  @Query(() => [AccountGraphqlModel], { name: 'searchAccounts' })
+  async searchAccounts(
+    @Args('term') term: string,
+  ): Promise<AccountGraphqlModel[]> {
+    return (await this.accountsService.search(term)).map(
+      AccountGraphqlMapper.toModel,
+    );
   }
 }
