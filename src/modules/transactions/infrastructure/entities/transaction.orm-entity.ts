@@ -1,8 +1,18 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryColumn,
+} from 'typeorm';
 import { Currency, TransactionType } from '../../../../common/domain/enums';
 
 @Entity('transactions')
 @Index(['type', 'createdAt'])
+@Index(['idempotencyKey'], {
+  unique: true,
+  where: '"idempotencyKey" IS NOT NULL',
+})
 export class TransactionOrmEntity {
   @PrimaryColumn('uuid')
   id!: string;
@@ -31,10 +41,10 @@ export class TransactionOrmEntity {
   @Column({ type: 'decimal', precision: 18, scale: 6, nullable: true })
   exchangeRateUsed!: string | null;
 
-  @Column({ length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   idempotencyKey!: string | null;
 
-  @Column({ length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   description!: string | null;
 
   @CreateDateColumn()
