@@ -1,8 +1,18 @@
 import { Module } from '@nestjs/common';
-import { ExchangeRatesService } from './exchange-rates.service';
-import { ExchangeRatesResolver } from './exchange-rates.resolver';
+import { EXCHANGE_RATE_REPOSITORY } from '../../common/infrastructure/repository.tokens';
+import { ExchangeRatesService } from './application/exchange-rates.service';
+import { TypeOrmExchangeRateRepository } from './infrastructure';
+import { ExchangeRatesResolver } from './presentation';
 
 @Module({
-  providers: [ExchangeRatesResolver, ExchangeRatesService],
+  providers: [
+    ExchangeRatesService,
+    ExchangeRatesResolver,
+    {
+      provide: EXCHANGE_RATE_REPOSITORY,
+      useClass: TypeOrmExchangeRateRepository,
+    },
+  ],
+  exports: [ExchangeRatesService, EXCHANGE_RATE_REPOSITORY],
 })
 export class ExchangeRatesModule {}

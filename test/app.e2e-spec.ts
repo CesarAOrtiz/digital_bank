@@ -21,7 +21,7 @@ describe('AppController (e2e)', () => {
       .get('/health')
       .expect(200)
       .expect((response) => {
-        expect(response.body.service).toBe('qikcore-backend');
+        expect(response.body.service).toBe('digital_bank');
         expect(response.body.status).toBe('ok');
       });
   });
