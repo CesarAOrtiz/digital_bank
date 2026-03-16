@@ -1,8 +1,20 @@
 import { Module } from '@nestjs/common';
-import { AccountsService } from './accounts.service';
-import { AccountsResolver } from './accounts.resolver';
+import { ACCOUNT_REPOSITORY } from '../../common/infrastructure/repository.tokens';
+import { ClientsModule } from '../clients/clients.module';
+import { AccountsService } from './application/accounts.service';
+import { TypeOrmAccountRepository } from './infrastructure';
+import { AccountsResolver } from './presentation';
 
 @Module({
-  providers: [AccountsResolver, AccountsService],
+  imports: [ClientsModule],
+  providers: [
+    AccountsService,
+    AccountsResolver,
+    {
+      provide: ACCOUNT_REPOSITORY,
+      useClass: TypeOrmAccountRepository,
+    },
+  ],
+  exports: [AccountsService, ACCOUNT_REPOSITORY],
 })
 export class AccountsModule {}
