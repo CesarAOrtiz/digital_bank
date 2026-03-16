@@ -13,16 +13,14 @@ export class ExchangeRatesResolver {
   async createExchangeRate(
     @Args('input') input: CreateExchangeRateInput,
   ): Promise<ExchangeRateGraphqlModel> {
-    return ExchangeRateGraphqlMapper.toModel(
-      await this.exchangeRatesService.create(input),
-    );
+    const exchangeRate = await this.exchangeRatesService.create(input);
+    return ExchangeRateGraphqlMapper.toModel(exchangeRate);
   }
 
   @Query(() => [ExchangeRateGraphqlModel], { name: 'exchangeRates' })
   async findExchangeRates(): Promise<ExchangeRateGraphqlModel[]> {
-    return (await this.exchangeRatesService.findAll()).map(
-      ExchangeRateGraphqlMapper.toModel,
-    );
+    const exchangeRates = await this.exchangeRatesService.findAll();
+    return exchangeRates.map(ExchangeRateGraphqlMapper.toModel);
   }
 
   @Query(() => ExchangeRateGraphqlModel, { name: 'exchangeRate' })
@@ -30,8 +28,10 @@ export class ExchangeRatesResolver {
     @Args('baseCurrency', { type: () => Currency }) baseCurrency: Currency,
     @Args('targetCurrency', { type: () => Currency }) targetCurrency: Currency,
   ): Promise<ExchangeRateGraphqlModel> {
-    return ExchangeRateGraphqlMapper.toModel(
-      await this.exchangeRatesService.findCurrent(baseCurrency, targetCurrency),
+    const exchangeRate = await this.exchangeRatesService.findCurrent(
+      baseCurrency,
+      targetCurrency,
     );
+    return ExchangeRateGraphqlMapper.toModel(exchangeRate);
   }
 }

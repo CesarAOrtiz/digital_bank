@@ -12,49 +12,46 @@ export class AccountsResolver {
   async createAccount(
     @Args('input') input: CreateAccountInput,
   ): Promise<AccountGraphqlModel> {
-    return AccountGraphqlMapper.toModel(
-      await this.accountsService.create(input),
-    );
+    const account = await this.accountsService.create(input);
+    return AccountGraphqlMapper.toModel(account);
   }
 
   @Query(() => [AccountGraphqlModel], { name: 'accounts' })
   async findAccounts(): Promise<AccountGraphqlModel[]> {
-    return (await this.accountsService.findAll()).map(
-      AccountGraphqlMapper.toModel,
-    );
-  }
-
-  @Query(() => [AccountGraphqlModel], { name: 'accountsByClient' })
-  async findAccountsByClient(
-    @Args('clientId', { type: () => ID }) clientId: string,
-  ): Promise<AccountGraphqlModel[]> {
-    return (await this.accountsService.findByClient(clientId)).map(
-      AccountGraphqlMapper.toModel,
-    );
+    const accounts = await this.accountsService.findAll();
+    return accounts.map(AccountGraphqlMapper.toModel);
   }
 
   @Query(() => AccountGraphqlModel, { name: 'account' })
   async findAccount(
     @Args('id', { type: () => ID }) id: string,
   ): Promise<AccountGraphqlModel> {
-    return AccountGraphqlMapper.toModel(await this.accountsService.findOne(id));
+    const account = await this.accountsService.findOne(id);
+    return AccountGraphqlMapper.toModel(account);
   }
 
   @Query(() => AccountGraphqlModel, { name: 'account' })
   async findAccountByAccountNumber(
     @Args('accountNumber') accountNumber: string,
   ): Promise<AccountGraphqlModel> {
-    return AccountGraphqlMapper.toModel(
-      await this.accountsService.findByAccountNumber(accountNumber),
-    );
+    const account =
+      await this.accountsService.findByAccountNumber(accountNumber);
+    return AccountGraphqlMapper.toModel(account);
+  }
+
+  @Query(() => [AccountGraphqlModel], { name: 'accountsByClient' })
+  async findAccountsByClient(
+    @Args('clientId', { type: () => ID }) clientId: string,
+  ): Promise<AccountGraphqlModel[]> {
+    const accounts = await this.accountsService.findByClient(clientId);
+    return accounts.map(AccountGraphqlMapper.toModel);
   }
 
   @Query(() => [AccountGraphqlModel], { name: 'searchAccounts' })
   async searchAccounts(
     @Args('term') term: string,
   ): Promise<AccountGraphqlModel[]> {
-    return (await this.accountsService.search(term)).map(
-      AccountGraphqlMapper.toModel,
-    );
+    const accounts = await this.accountsService.search(term);
+    return accounts.map(AccountGraphqlMapper.toModel);
   }
 }

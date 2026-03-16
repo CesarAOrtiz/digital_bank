@@ -12,29 +12,29 @@ export class ClientsResolver {
   async createClient(
     @Args('input') input: CreateClientInput,
   ): Promise<ClientGraphqlModel> {
-    return ClientGraphqlMapper.toModel(await this.clientsService.create(input));
+    const client = await this.clientsService.create(input);
+    return ClientGraphqlMapper.toModel(client);
   }
 
   @Query(() => [ClientGraphqlModel], { name: 'clients' })
   async findClients(): Promise<ClientGraphqlModel[]> {
-    return (await this.clientsService.findAll()).map(
-      ClientGraphqlMapper.toModel,
-    );
-  }
-
-  @Query(() => [ClientGraphqlModel], { name: 'searchClients' })
-  async searchClients(
-    @Args('term') term: string,
-  ): Promise<ClientGraphqlModel[]> {
-    return (await this.clientsService.search(term)).map(
-      ClientGraphqlMapper.toModel,
-    );
+    const clients = await this.clientsService.findAll();
+    return clients.map(ClientGraphqlMapper.toModel);
   }
 
   @Query(() => ClientGraphqlModel, { name: 'client' })
   async findClient(
     @Args('id', { type: () => ID }) id: string,
   ): Promise<ClientGraphqlModel> {
-    return ClientGraphqlMapper.toModel(await this.clientsService.findOne(id));
+    const client = await this.clientsService.findOne(id);
+    return ClientGraphqlMapper.toModel(client);
+  }
+
+  @Query(() => [ClientGraphqlModel], { name: 'searchClients' })
+  async searchClients(
+    @Args('term') term: string,
+  ): Promise<ClientGraphqlModel[]> {
+    const clients = await this.clientsService.search(term);
+    return clients.map(ClientGraphqlMapper.toModel);
   }
 }
