@@ -1,0 +1,140 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type Account {
+  accountNumber: String!
+  balance: String!
+  clientId: String!
+  createdAt: DateTime!
+  currency: Currency!
+  id: ID!
+  status: AccountStatus!
+  updatedAt: DateTime!
+}
+
+enum AccountStatus {
+  ACTIVE
+  BLOCKED
+  INACTIVE
+}
+
+type Client {
+  createdAt: DateTime!
+  documentNumber: String!
+  email: String!
+  firstName: String!
+  id: ID!
+  lastName: String!
+  updatedAt: DateTime!
+}
+
+input CreateAccountInput {
+  accountNumber: String!
+  clientId: String!
+  currency: Currency!
+  initialBalance: String
+}
+
+input CreateClientInput {
+  documentNumber: String!
+  email: String!
+  firstName: String!
+  lastName: String!
+}
+
+input CreateExchangeRateInput {
+  baseCurrency: Currency!
+  effectiveAt: DateTime!
+  rate: String!
+  targetCurrency: Currency!
+}
+
+enum Currency {
+  DOP
+  EUR
+  USD
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+input DepositInput {
+  accountId: String!
+  amount: String!
+  description: String
+  idempotencyKey: String
+}
+
+type ExchangeRate {
+  baseCurrency: Currency!
+  createdAt: DateTime!
+  effectiveAt: DateTime!
+  id: String!
+  rate: String!
+  targetCurrency: Currency!
+}
+
+type Mutation {
+  createAccount(input: CreateAccountInput!): Account!
+  createClient(input: CreateClientInput!): Client!
+  createExchangeRate(input: CreateExchangeRateInput!): ExchangeRate!
+  deposit(input: DepositInput!): Transaction!
+  transfer(input: TransferInput!): Transaction!
+  withdraw(input: WithdrawalInput!): Transaction!
+}
+
+type Query {
+  account(id: ID!): Account!
+  accounts: [Account!]!
+  client(id: ID!): Client!
+  clients: [Client!]!
+  exchangeRates: [ExchangeRate!]!
+  searchTransactions(filters: SearchTransactionsInput): [Transaction!]!
+  transaction(id: ID!): Transaction!
+  transactions: [Transaction!]!
+}
+
+input SearchTransactionsInput {
+  accountId: ID
+  text: String
+  type: TransactionType
+}
+
+type Transaction {
+  createdAt: DateTime!
+  description: String
+  destinationAccountId: ID
+  destinationAmount: String
+  destinationCurrency: Currency
+  exchangeRateUsed: String
+  id: ID!
+  idempotencyKey: String
+  sourceAccountId: ID
+  sourceAmount: String!
+  sourceCurrency: Currency!
+  type: TransactionType!
+}
+
+enum TransactionType {
+  DEPOSIT
+  TRANSFER
+  WITHDRAWAL
+}
+
+input TransferInput {
+  amount: String!
+  description: String
+  destinationAccountId: String!
+  idempotencyKey: String
+  sourceAccountId: String!
+}
+
+input WithdrawalInput {
+  accountId: String!
+  amount: String!
+  description: String
+  idempotencyKey: String
+}

@@ -46,8 +46,8 @@ export function createDatabaseOptions(
     migrations: resolveMigrations(mode),
     synchronize: false,
     logging: false,
-    ssl: {
-      rejectUnauthorized: false,
-    },
+    // ssl: {
+    //   rejectUnauthorized: false,
+    // },
   };
 }
