@@ -1,8 +1,18 @@
 import { Module } from '@nestjs/common';
-import { ClientsService } from './clients.service';
-import { ClientsResolver } from './clients.resolver';
+import { CLIENT_REPOSITORY } from '../../common/infrastructure/repository.tokens';
+import { ClientsService } from './application/clients.service';
+import { TypeOrmClientRepository } from './infrastructure';
+import { ClientsResolver } from './presentation';
 
 @Module({
-  providers: [ClientsResolver, ClientsService],
+  providers: [
+    ClientsService,
+    ClientsResolver,
+    {
+      provide: CLIENT_REPOSITORY,
+      useClass: TypeOrmClientRepository,
+    },
+  ],
+  exports: [ClientsService, CLIENT_REPOSITORY],
 })
 export class ClientsModule {}
