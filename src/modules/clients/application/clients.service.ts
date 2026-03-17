@@ -4,6 +4,11 @@ import {
   DuplicateClientException,
   ResourceNotFoundException,
 } from '../../../common/domain/exceptions';
+import {
+  RedisCacheKeys,
+  RedisCacheTtl,
+} from '../../../common/infrastructure/redis/redis-cache.keys';
+import { RedisCacheService } from '../../../common/infrastructure/redis/redis-cache.service';
 import { CLIENT_REPOSITORY } from '../../../common/infrastructure/repository.tokens';
 import { Client } from '../domain';
 import type { ClientRepository } from '../domain';
@@ -14,6 +19,7 @@ export class ClientsService {
   constructor(
     @Inject(CLIENT_REPOSITORY)
     private readonly clientRepository: ClientRepository,
+    private readonly redisCacheService: RedisCacheService,
   ) {}
 
   async create(data: CreateClientInput): Promise<Client> {
@@ -30,7 +36,7 @@ export class ClientsService {
 
     const now = new Date();
 
-    return this.clientRepository.save(
+    const client = await this.clientRepository.save(
       new Client({
         id: randomUUID(),
         firstName: data.firstName.trim(),
@@ -41,6 +47,9 @@ export class ClientsService {
         updatedAt: now,
       }),
     );
+
+    await this.redisCacheService.del(RedisCacheKeys.client(client.id));
+    return client;
   }
 
   findAll(): Promise<Client[]> {
@@ -52,11 +61,29 @@ export class ClientsService {
   }
 
   async findOne(id: string): Promise<Client> {
-    const client = await this.clientRepository.findById(id);
-    if (!client) {
-      throw new ResourceNotFoundException(`Client ${id} not found.`);
+    const normalizedId = id.trim();
+    const cacheKey = RedisCacheKeys.client(normalizedId);
+    const cached = await this.redisCacheService.get<ReturnType<Client['toPrimitives']>>(
+      cacheKey,
+    );
+    if (cached) {
+      return new Client({
+        ...cached,
+        createdAt: new Date(cached.createdAt),
+        updatedAt: new Date(cached.updatedAt),
+      });
     }
 
+    const client = await this.clientRepository.findById(normalizedId);
+    if (!client) {
+      throw new ResourceNotFoundException(`Client ${normalizedId} not found.`);
+    }
+
+    await this.redisCacheService.set(
+      cacheKey,
+      client.toPrimitives(),
+      RedisCacheTtl.client,
+    );
     return client;
   }
 }

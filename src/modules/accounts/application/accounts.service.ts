@@ -8,6 +8,11 @@ import {
   ResourceNotFoundException,
 } from '../../../common/domain/exceptions';
 import {
+  RedisCacheKeys,
+  RedisCacheTtl,
+} from '../../../common/infrastructure/redis/redis-cache.keys';
+import { RedisCacheService } from '../../../common/infrastructure/redis/redis-cache.service';
+import {
   ACCOUNT_REPOSITORY,
   CLIENT_REPOSITORY,
 } from '../../../common/infrastructure/repository.tokens';
@@ -23,6 +28,7 @@ export class AccountsService {
     private readonly accountRepository: AccountRepository,
     @Inject(CLIENT_REPOSITORY)
     private readonly clientRepository: ClientRepository,
+    private readonly redisCacheService: RedisCacheService,
   ) {}
 
   async create(data: CreateAccountInput): Promise<Account> {
@@ -45,7 +51,7 @@ export class AccountsService {
     }
 
     const now = new Date();
-    return this.accountRepository.save(
+    const account = await this.accountRepository.save(
       new Account({
         id: randomUUID(),
         accountNumber,
@@ -57,6 +63,9 @@ export class AccountsService {
         updatedAt: now,
       }),
     );
+
+    await this.invalidateClientAccountsCache(data.clientId);
+    return account;
   }
 
   findAll(): Promise<Account[]> {
@@ -64,7 +73,7 @@ export class AccountsService {
   }
 
   findByClient(clientId: string): Promise<Account[]> {
-    return this.accountRepository.findByClientId(clientId.trim());
+    return this.findByClientCached(clientId.trim());
   }
 
   async findByAccountNumber(accountNumber: string): Promise<Account> {
@@ -90,5 +99,37 @@ export class AccountsService {
     }
 
     return account;
+  }
+
+  async invalidateClientAccountsCache(clientId: string): Promise<void> {
+    await this.redisCacheService.del(
+      RedisCacheKeys.clientAccounts(clientId.trim()),
+    );
+  }
+
+  private async findByClientCached(clientId: string): Promise<Account[]> {
+    const cacheKey = RedisCacheKeys.clientAccounts(clientId);
+    const cached = await this.redisCacheService.get<
+      Array<ReturnType<Account['toPrimitives']>>
+    >(cacheKey);
+    if (cached) {
+      // Cached balances are read-optimization only and must never drive financial logic.
+      return cached.map(
+        (account) =>
+          new Account({
+            ...account,
+            createdAt: new Date(account.createdAt),
+            updatedAt: new Date(account.updatedAt),
+          }),
+      );
+    }
+
+    const accounts = await this.accountRepository.findByClientId(clientId);
+    await this.redisCacheService.set(
+      cacheKey,
+      accounts.map((account) => account.toPrimitives()),
+      RedisCacheTtl.clientAccounts,
+    );
+    return accounts;
   }
 }

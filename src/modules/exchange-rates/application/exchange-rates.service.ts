@@ -6,6 +6,11 @@ import {
   DomainRuleViolationException,
   ExchangeRateNotConfiguredException,
 } from '../../../common/domain/exceptions';
+import {
+  RedisCacheKeys,
+  RedisCacheTtl,
+} from '../../../common/infrastructure/redis/redis-cache.keys';
+import { RedisCacheService } from '../../../common/infrastructure/redis/redis-cache.service';
 import { EXCHANGE_RATE_REPOSITORY } from '../../../common/infrastructure/repository.tokens';
 import { ExchangeRate } from '../domain';
 import type { ExchangeRateRepository } from '../domain';
@@ -16,6 +21,7 @@ export class ExchangeRatesService {
   constructor(
     @Inject(EXCHANGE_RATE_REPOSITORY)
     private readonly exchangeRateRepository: ExchangeRateRepository,
+    private readonly redisCacheService: RedisCacheService,
   ) {}
 
   async create(data: CreateExchangeRateInput): Promise<ExchangeRate> {
@@ -23,7 +29,7 @@ export class ExchangeRatesService {
       throw new DomainRuleViolationException('Exchange rate base and target currencies must differ.');
     }
 
-    return this.exchangeRateRepository.save(
+    const exchangeRate = await this.exchangeRateRepository.save(
       new ExchangeRate({
         id: randomUUID(),
         baseCurrency: data.baseCurrency,
@@ -33,6 +39,12 @@ export class ExchangeRatesService {
         createdAt: new Date(),
       }),
     );
+
+    await this.invalidateLatestRateCache(
+      data.baseCurrency,
+      data.targetCurrency,
+    );
+    return exchangeRate;
   }
 
   findAll(): Promise<ExchangeRate[]> {
@@ -53,6 +65,18 @@ export class ExchangeRatesService {
       );
     }
 
+    const cacheKey = RedisCacheKeys.exchangeRate(baseCurrency, targetCurrency);
+    const cached = await this.redisCacheService.get<
+      ReturnType<ExchangeRate['toPrimitives']>
+    >(cacheKey);
+    if (cached) {
+      return new ExchangeRate({
+        ...cached,
+        effectiveAt: new Date(cached.effectiveAt),
+        createdAt: new Date(cached.createdAt),
+      });
+    }
+
     const rate = await this.exchangeRateRepository.findLatest(
       baseCurrency,
       targetCurrency,
@@ -63,6 +87,20 @@ export class ExchangeRatesService {
       throw new ExchangeRateNotConfiguredException(baseCurrency, targetCurrency);
     }
 
+    await this.redisCacheService.set(
+      cacheKey,
+      rate.toPrimitives(),
+      RedisCacheTtl.exchangeRate,
+    );
     return rate;
+  }
+
+  private async invalidateLatestRateCache(
+    baseCurrency: Currency,
+    targetCurrency: Currency,
+  ): Promise<void> {
+    await this.redisCacheService.del(
+      RedisCacheKeys.exchangeRate(baseCurrency, targetCurrency),
+    );
   }
 }

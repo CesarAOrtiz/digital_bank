@@ -12,6 +12,10 @@ import {
   ExchangeRateNotConfiguredException,
   ResourceNotFoundException,
 } from '../../../../common/domain/exceptions';
+import {
+  RedisCacheKeys,
+} from '../../../../common/infrastructure/redis/redis-cache.keys';
+import { RedisCacheService } from '../../../../common/infrastructure/redis/redis-cache.service';
 import { Account } from '../../../accounts/domain';
 import type { AccountRepository } from '../../../accounts/domain';
 import type { ExchangeRateRepository } from '../../../exchange-rates/domain';
@@ -27,12 +31,16 @@ export class TransactionWriteService {
 
   constructor(
     private readonly transactionIdempotencyService: TransactionIdempotencyService,
+    private readonly redisCacheService: RedisCacheService,
   ) {}
 
   async deposit(data: DepositTransactionInput): Promise<Transaction> {
     this.logger.log(`Deposit requested for account ${data.accountId}`);
+    let affectedClientIds: string[] = [];
+    let didMutate = false;
 
-    return this.transactionIdempotencyService.executeIdempotentTransaction(
+    const transaction =
+      await this.transactionIdempotencyService.executeIdempotentTransaction(
       {
         operationName: 'deposit',
         lockAccountIds: [data.accountId],
@@ -60,20 +68,32 @@ export class TransactionWriteService {
         );
         const updatedAccount = account.deposit(data.amount);
         await accountRepository.save(updatedAccount);
+        affectedClientIds = [updatedAccount.toPrimitives().clientId];
 
-        return transactionRepository.save(
+        const savedTransaction = await transactionRepository.save(
           this.buildDepositTransaction(updatedAccount, data),
         );
+        didMutate = true;
+        return savedTransaction;
       },
       (existing) =>
         this.transactionIdempotencyService.assertDepositMatches(existing, data),
     );
+
+    if (didMutate) {
+      await this.invalidateClientAccountsCaches(affectedClientIds);
+    }
+
+    return transaction;
   }
 
   async withdraw(data: WithdrawTransactionInput): Promise<Transaction> {
     this.logger.log(`Withdrawal requested for account ${data.accountId}`);
+    let affectedClientIds: string[] = [];
+    let didMutate = false;
 
-    return this.transactionIdempotencyService.executeIdempotentTransaction(
+    const transaction =
+      await this.transactionIdempotencyService.executeIdempotentTransaction(
       {
         operationName: 'withdraw',
         lockAccountIds: [data.accountId],
@@ -101,10 +121,13 @@ export class TransactionWriteService {
         );
         const updatedAccount = account.withdraw(data.amount);
         await accountRepository.save(updatedAccount);
+        affectedClientIds = [updatedAccount.toPrimitives().clientId];
 
-        return transactionRepository.save(
+        const savedTransaction = await transactionRepository.save(
           this.buildWithdrawalTransaction(updatedAccount, data),
         );
+        didMutate = true;
+        return savedTransaction;
       },
       (existing) =>
         this.transactionIdempotencyService.assertWithdrawalMatches(
@@ -112,6 +135,12 @@ export class TransactionWriteService {
           data,
         ),
     );
+
+    if (didMutate) {
+      await this.invalidateClientAccountsCaches(affectedClientIds);
+    }
+
+    return transaction;
   }
 
   async transfer(data: TransferTransactionInput): Promise<Transaction> {
@@ -124,8 +153,11 @@ export class TransactionWriteService {
     this.logger.log(
       `Transfer requested from ${data.sourceAccountId} to ${data.destinationAccountId}`,
     );
+    let affectedClientIds: string[] = [];
+    let didMutate = false;
 
-    return this.transactionIdempotencyService.executeIdempotentTransaction(
+    const transaction =
+      await this.transactionIdempotencyService.executeIdempotentTransaction(
       {
         operationName: 'transfer',
         lockAccountIds: [data.sourceAccountId, data.destinationAccountId],
@@ -173,8 +205,12 @@ export class TransactionWriteService {
         );
         await accountRepository.save(debitedSource);
         await accountRepository.save(creditedDestination);
+        affectedClientIds = [
+          sourceAccount.toPrimitives().clientId,
+          destinationAccount.toPrimitives().clientId,
+        ];
 
-        return transactionRepository.save(
+        const savedTransaction = await transactionRepository.save(
           this.buildTransferTransaction({
             sourceAccount: debitedSource,
             destinationAccount: creditedDestination,
@@ -185,10 +221,18 @@ export class TransactionWriteService {
             data,
           }),
         );
+        didMutate = true;
+        return savedTransaction;
       },
       (existing) =>
         this.transactionIdempotencyService.assertTransferMatches(existing, data),
     );
+
+    if (didMutate) {
+      await this.invalidateClientAccountsCaches(affectedClientIds);
+    }
+
+    return transaction;
   }
 
   private buildDepositTransaction(
@@ -308,5 +352,15 @@ export class TransactionWriteService {
       ),
       exchangeRateUsed: formatRate(exchangeRate.rate),
     };
+  }
+
+  private async invalidateClientAccountsCaches(
+    clientIds: string[],
+  ): Promise<void> {
+    await this.redisCacheService.delMany(
+      [...new Set(clientIds)].map((clientId) =>
+        RedisCacheKeys.clientAccounts(clientId),
+      ),
+    );
   }
 }

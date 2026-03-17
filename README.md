@@ -37,7 +37,7 @@ El esquema generado se escribe automáticamente en:
 - `decimal.js` para cálculos monetarios
 - `@nestjs/terminus` para health checks
 
-Dependencias preparadas para integración futura:
+Dependencias disponibles:
 
 - Redis
 - Elasticsearch
@@ -289,6 +289,66 @@ Estos códigos se entregan en:
 
 permitiendo manejo de errores progamados.
 
+### Redis y Caché Selectiva
+
+Redis se usa con `cache-aside pattern` y solo como optimización de lecturas frecuentes y relativamente estables.
+
+Casos cacheados:
+
+- cliente por `id`
+- cuentas por `clientId`
+- tasa de cambio vigente por par de monedas
+
+Claves usadas:
+
+- `client:{id}`
+- `client-accounts:{clientId}`
+- `fx:{baseCurrency}:{targetCurrency}`
+
+TTL:
+
+- clientes: `600` segundos
+- cuentas por cliente: `600` segundos
+- tasas de cambio vigentes: `300` segundos
+
+Flujo aplicado:
+
+- lectura:
+  - se consulta Redis
+  - si no existe, se consulta PostgreSQL
+  - el resultado se guarda en Redis
+  - se devuelve la respuesta
+- escritura:
+  - primero se persiste en PostgreSQL
+  - luego se invalidan explícitamente las claves relacionadas en Redis
+
+Invalidaciones implementadas:
+
+- al crear un cliente, se invalida `client:{id}`
+- al crear una cuenta, se invalida `client-accounts:{clientId}`
+- al crear una tasa de cambio, se invalida `fx:{baseCurrency}:{targetCurrency}`
+- en `deposit` y `withdraw`, se invalida `client-accounts:{clientId}` de la cuenta afectada
+- en `transfer`, se invalidan las claves `client-accounts` de los clientes involucrados sin duplicar trabajo si ambos coinciden
+
+### Por Qué Redis No Se Usa Para Balances Operativos
+
+Redis no se usa para decidir fondos disponibles, saldos reales ni consistencia financiera.
+
+Motivos:
+
+- en un sistema financiero, la consistencia del balance es crítica
+- PostgreSQL sigue siendo la fuente de verdad
+- usar Redis para validar fondos introduciría riesgo de inconsistencia
+
+En `deposit`, `withdraw` y `transfer`:
+
+- la cuenta real y su balance se leen siempre desde PostgreSQL
+- la operación corre dentro de una transacción
+- se mantiene el locking pesimista existente
+- Redis no participa en atomicidad, idempotencia ni validación de fondos
+
+Si una respuesta cacheada de `accountsByClient` incluye balance, ese balance es solo de lectura y nunca se reutiliza para cálculos financieros.
+
 ## API GraphQL
 
 ### Mutations
@@ -321,7 +381,7 @@ npm install
 
 ### Configurar variables de entorno
 
-Copiar `.env.example` y ajustar valores si es necesario.
+Copiar `.env.template` y ajustar valores si es necesario.
 
 ### Ejecutar migraciones
 
@@ -434,6 +494,10 @@ DB_DATABASE=
 
 REDIS_HOST=
 REDIS_PORT=
+REDIS_USERNAME=
+REDIS_PASSWORD=
+REDIS_DB=0
+REDIS_CONNECT_TIMEOUT=3000
 
 ELASTICSEARCH_NODE=
 
@@ -471,11 +535,11 @@ Actualmente el proyecto incluye:
 - transferencias multi-moneda
 - control de concurrencia
 - idempotencia
+- caché selectiva con Redis para lecturas
 - health checks
 
 Fuera del alcance actual:
 
-- Redis como cache funcional de negocio
 - Elasticsearch como índice de búsqueda real
 - seeds
 - Docker
