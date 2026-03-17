@@ -1,5 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
-import { HealthCheck, HealthCheckService, HealthIndicatorResult } from '@nestjs/terminus';
+import {
+  HealthCheck,
+  HealthCheckService,
+  HealthIndicatorResult,
+} from '@nestjs/terminus';
 import { AppService } from './app.service';
 
 @Controller()
@@ -13,9 +17,11 @@ export class AppController {
   @HealthCheck()
   async getHealth() {
     return this.healthCheckService.check([
-      async (): Promise<HealthIndicatorResult> => this.appService.checkPostgres(),
+      async (): Promise<HealthIndicatorResult> =>
+        this.appService.checkPostgres(),
       async (): Promise<HealthIndicatorResult> => this.appService.checkRedis(),
-      async (): Promise<HealthIndicatorResult> => this.appService.checkElastic(),
+      async (): Promise<HealthIndicatorResult> =>
+        this.appService.checkElastic(),
     ]);
   }
 }

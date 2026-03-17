@@ -8,6 +8,7 @@ import { Client as ElasticClient } from '@elastic/elasticsearch';
 import Redis from 'ioredis';
 import { DataSource } from 'typeorm';
 import { TYPEORM_DATA_SOURCE } from './common/infrastructure/database.tokens';
+import { ELASTIC_CLIENT } from './common/infrastructure/elasticsearch/elasticsearch.tokens';
 import { REDIS_CLIENT } from './common/infrastructure/redis/redis.tokens';
 
 @Injectable()
@@ -15,6 +16,7 @@ export class AppService {
   constructor(
     @Inject(TYPEORM_DATA_SOURCE) private readonly dataSource: DataSource,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    @Inject(ELASTIC_CLIENT) private readonly elastic: ElasticClient,
     private readonly healthIndicatorService: HealthIndicatorService,
   ) {}
 
@@ -39,7 +41,9 @@ export class AppService {
     } catch (error) {
       throw new HealthCheckError(
         'Postgres check failed',
-        indicator.down({ message: this.getHealthErrorMessage('postgres', error) }),
+        indicator.down({
+          message: this.getHealthErrorMessage('postgres', error),
+        }),
       );
     }
   }
@@ -67,11 +71,10 @@ export class AppService {
 
   async checkElastic(): Promise<HealthIndicatorResult> {
     const indicator = this.healthIndicatorService.check('elastic');
-    const node = process.env.ELASTICSEARCH_NODE ?? 'http://localhost:9200';
-    const client = new ElasticClient({ node });
+    const node = this.getOptionalEnv('ELASTICSEARCH_NODE');
 
     try {
-      await client.ping();
+      await this.elastic.ping();
       return indicator.up({ node });
     } catch (error) {
       throw new HealthCheckError(
@@ -104,6 +107,11 @@ export class AppService {
 
   private getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+  }
+
+  private getOptionalEnv(name: string): string | undefined {
+    const value = process.env[name]?.trim();
+    return value ? value : undefined;
   }
 
   private async ensureRedisConnection(): Promise<void> {
