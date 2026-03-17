@@ -5,15 +5,28 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { GqlArgumentsHost, GqlExceptionFilter } from '@nestjs/graphql';
+import { BaseExceptionFilter } from '@nestjs/core';
+import {
+  GqlArgumentsHost,
+  GqlContextType,
+  GqlExceptionFilter,
+} from '@nestjs/graphql';
 import { GraphQLError } from 'graphql';
 import { getExceptionCode, getExceptionMessage } from '../domain/exceptions';
 
 @Catch()
-export class GraphqlExceptionFilter implements GqlExceptionFilter {
+export class GraphqlExceptionFilter
+  extends BaseExceptionFilter
+  implements GqlExceptionFilter
+{
   private readonly logger = new Logger(GraphqlExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost) {
+    if (host.getType<GqlContextType>() !== 'graphql') {
+      super.catch(exception, host);
+      return;
+    }
+
     GqlArgumentsHost.create(host);
 
     const status =

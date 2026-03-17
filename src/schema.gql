@@ -87,7 +87,7 @@ type Mutation {
 }
 
 type Query {
-  account(id: ID!): Account!
+  account(accountNumber: String!): Account!
   accounts: [Account!]!
   accountsByClient(clientId: ID!): [Account!]!
   client(id: ID!): Client!

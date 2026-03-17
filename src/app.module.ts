@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { TerminusModule } from '@nestjs/terminus';
 import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -16,6 +17,7 @@ import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.mod
 @Module({
   imports: [
     DatabaseModule,
+    TerminusModule,
     ClientsModule,
     AccountsModule,
     TransactionsModule,

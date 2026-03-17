@@ -17,6 +17,10 @@ export type DatabaseConfigMode =
   | 'production-cli'
   | 'runtime';
 
+function isTypeScriptRuntime(): boolean {
+  return __filename.endsWith('.ts');
+}
+
 function resolveMigrations(mode: DatabaseConfigMode): string[] {
   if (mode === 'production-cli') {
     return [join('dist', 'migrations', '*.js')];
@@ -26,10 +30,9 @@ function resolveMigrations(mode: DatabaseConfigMode): string[] {
     return [join('src', 'migrations', '*.ts')];
   }
 
-  return [
-    join('src', 'migrations', '*.ts'),
-    join('dist', 'migrations', '*.js'),
-  ];
+  return isTypeScriptRuntime()
+    ? [join('src', 'migrations', '*.ts')]
+    : [join('dist', 'migrations', '*.js')];
 }
 
 export function createDatabaseOptions(
@@ -46,8 +49,8 @@ export function createDatabaseOptions(
     migrations: resolveMigrations(mode),
     synchronize: false,
     logging: false,
-    // ssl: {
-    //   rejectUnauthorized: false,
-    // },
+    ssl: {
+      rejectUnauthorized: false,
+    },
   };
 }
