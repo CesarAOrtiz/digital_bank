@@ -104,6 +104,9 @@ type Query {
 
 input SearchTransactionsInput {
   accountId: ID
+  currency: Currency
+  dateFrom: DateTime
+  dateTo: DateTime
   text: String
   type: TransactionType
 }

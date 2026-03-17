@@ -1,7 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { TYPEORM_DATA_SOURCE } from '../../../../common/infrastructure/database.tokens';
-import { TransactionType } from '../../../../common/domain/enums';
+import { Currency, TransactionType } from '../../../../common/domain/enums';
 import { Transaction } from '../../domain';
 import type {
   TransactionRepository,
@@ -66,6 +66,22 @@ export class TypeOrmTransactionRepository implements TransactionRepository {
         '(transaction.sourceAccountId = :accountId OR transaction.destinationAccountId = :accountId)',
         { accountId: filters.accountId },
       );
+    }
+    if (filters.currency) {
+      query.andWhere(
+        '(transaction.sourceCurrency = :currency OR transaction.destinationCurrency = :currency)',
+        { currency: filters.currency satisfies Currency },
+      );
+    }
+    if (filters.dateFrom) {
+      query.andWhere('transaction.createdAt >= :dateFrom', {
+        dateFrom: filters.dateFrom,
+      });
+    }
+    if (filters.dateTo) {
+      query.andWhere('transaction.createdAt <= :dateTo', {
+        dateTo: filters.dateTo,
+      });
     }
     if (filters.text) {
       query.andWhere(
