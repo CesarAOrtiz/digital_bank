@@ -1,19 +1,19 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { TransactionType } from '../../../common/domain/enums';
+import { TransactionType } from '../../../../common/domain/enums';
 import {
   FINANCIAL_TRANSACTION_MANAGER,
   TRANSACTION_REPOSITORY,
-} from '../../../common/infrastructure/repository.tokens';
-import { Transaction } from '../domain';
-import type { TransactionRepository } from '../domain';
+} from '../../../../common/infrastructure/repository.tokens';
+import { Transaction } from '../../domain';
+import type { TransactionRepository } from '../../domain';
 import type {
   FinancialTransactionContext,
   FinancialTransactionManager,
-} from './contracts/financial-transaction-manager.contract';
-import type { DepositTransactionInput } from './inputs/deposit-transaction.input';
-import type { TransferTransactionInput } from './inputs/transfer-transaction.input';
-import type { WithdrawTransactionInput } from './inputs/withdraw-transaction.input';
-import { TransactionIdempotencyValidator } from './validators/transaction-idempotency.validator';
+} from '../contracts/financial-transaction-manager.contract';
+import type { DepositTransactionInput } from '../inputs/deposit-transaction.input';
+import type { TransferTransactionInput } from '../inputs/transfer-transaction.input';
+import type { WithdrawTransactionInput } from '../inputs/withdraw-transaction.input';
+import { TransactionIdempotencyValidator } from '../validators/transaction-idempotency.validator';
 
 interface IdempotentTransactionOptions {
   operationName: string;

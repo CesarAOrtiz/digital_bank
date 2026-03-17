@@ -1,5 +1,5 @@
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
-import { TransactionsService } from '../../application/transactions.service';
+import { TransactionsService } from '../../application/services/transactions.service';
 import { DepositInput } from '../inputs/deposit.input';
 import { SearchTransactionsInput } from '../inputs/search-transactions.input';
 import { TransferInput } from '../inputs/transfer.input';

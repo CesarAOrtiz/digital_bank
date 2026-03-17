@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Transaction } from '../domain';
-import type { TransactionSearchFilters } from '../domain';
-import type { DepositTransactionInput } from './inputs/deposit-transaction.input';
-import type { TransferTransactionInput } from './inputs/transfer-transaction.input';
-import type { WithdrawTransactionInput } from './inputs/withdraw-transaction.input';
+import { Transaction } from '../../domain';
+import type { TransactionSearchFilters } from '../../domain';
+import type { DepositTransactionInput } from '../inputs/deposit-transaction.input';
+import type { TransferTransactionInput } from '../inputs/transfer-transaction.input';
+import type { WithdrawTransactionInput } from '../inputs/withdraw-transaction.input';
 import { TransactionReadService } from './transaction-read.service';
 import { TransactionWriteService } from './transaction-write.service';
 

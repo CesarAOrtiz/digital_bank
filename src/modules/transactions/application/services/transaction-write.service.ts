@@ -5,21 +5,21 @@ import {
   formatRate,
   roundMoney,
   toDecimal,
-} from '../../../common/application/money';
-import { Currency, TransactionType } from '../../../common/domain/enums';
+} from '../../../../common/application/money';
+import { Currency, TransactionType } from '../../../../common/domain/enums';
 import {
   DomainRuleViolationException,
   ExchangeRateNotConfiguredException,
   ResourceNotFoundException,
-} from '../../../common/domain/exceptions';
-import { Account } from '../../accounts/domain';
-import type { AccountRepository } from '../../accounts/domain';
-import type { ExchangeRateRepository } from '../../exchange-rates/domain';
-import { Transaction } from '../domain';
+} from '../../../../common/domain/exceptions';
+import { Account } from '../../../accounts/domain';
+import type { AccountRepository } from '../../../accounts/domain';
+import type { ExchangeRateRepository } from '../../../exchange-rates/domain';
+import { Transaction } from '../../domain';
 import { TransactionIdempotencyService } from './transaction-idempotency.service';
-import type { DepositTransactionInput } from './inputs/deposit-transaction.input';
-import type { TransferTransactionInput } from './inputs/transfer-transaction.input';
-import type { WithdrawTransactionInput } from './inputs/withdraw-transaction.input';
+import type { DepositTransactionInput } from '../inputs/deposit-transaction.input';
+import type { TransferTransactionInput } from '../inputs/transfer-transaction.input';
+import type { WithdrawTransactionInput } from '../inputs/withdraw-transaction.input';
 
 @Injectable()
 export class TransactionWriteService {

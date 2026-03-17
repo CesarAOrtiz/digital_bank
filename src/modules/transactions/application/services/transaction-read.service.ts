@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ResourceNotFoundException } from '../../../common/domain/exceptions';
-import { TRANSACTION_REPOSITORY } from '../../../common/infrastructure/repository.tokens';
-import { Transaction } from '../domain';
+import { ResourceNotFoundException } from '../../../../common/domain/exceptions';
+import { TRANSACTION_REPOSITORY } from '../../../../common/infrastructure/repository.tokens';
+import { Transaction } from '../../domain';
 import type {
   TransactionRepository,
   TransactionSearchFilters,
-} from '../domain';
+} from '../../domain';
 
 @Injectable()
 export class TransactionReadService {
