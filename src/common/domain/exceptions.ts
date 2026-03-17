@@ -3,6 +3,7 @@ import {
   ConflictException,
   HttpException,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 
 type ErrorPayload = {
@@ -81,7 +82,7 @@ export class IdempotencyKeyReuseException extends ConflictException {
   }
 }
 
-export class ExchangeRateNotConfiguredException extends BadRequestException {
+export class ExchangeRateNotConfiguredException extends UnprocessableEntityException {
   constructor(baseCurrency: string, targetCurrency: string) {
     super({
       message: `No exchange rate configured for ${baseCurrency} -> ${targetCurrency}.`,
