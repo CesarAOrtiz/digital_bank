@@ -8,11 +8,13 @@ import { Client as ElasticClient } from '@elastic/elasticsearch';
 import Redis from 'ioredis';
 import { DataSource } from 'typeorm';
 import { TYPEORM_DATA_SOURCE } from './common/infrastructure/database.tokens';
+import { REDIS_CLIENT } from './common/infrastructure/redis/redis.tokens';
 
 @Injectable()
 export class AppService {
   constructor(
     @Inject(TYPEORM_DATA_SOURCE) private readonly dataSource: DataSource,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly healthIndicatorService: HealthIndicatorService,
   ) {}
 
@@ -44,38 +46,22 @@ export class AppService {
 
   async checkRedis(): Promise<HealthIndicatorResult> {
     const indicator = this.healthIndicatorService.check('redis');
-    const redis = new Redis({
-      host: process.env.REDIS_HOST,
-      port: Number(process.env.REDIS_PORT ?? 6379),
-      maxRetriesPerRequest: 1,
-      enableReadyCheck: true,
-      lazyConnect: true,
-      connectTimeout: 3000,
-    });
-    let lastError: Error | null = null;
-
-    redis.on('error', (error) => {
-      lastError = error;
-    });
 
     try {
-      await redis.connect();
-      const result = await redis.ping();
+      await this.ensureRedisConnection();
+      const result = await this.redis.ping();
       if (result !== 'PONG') {
         throw new Error(`Unexpected Redis ping response: ${result}`);
       }
 
-      return indicator.up();
+      return indicator.up(`status=${this.redis.status}`);
     } catch (error) {
-      const rootCause = lastError ?? (error instanceof Error ? error : null);
       throw new HealthCheckError(
         'Redis check failed',
         indicator.down({
-          message: this.getHealthErrorMessage('redis', rootCause ?? error),
+          message: this.getHealthErrorMessage('redis', error),
         }),
       );
-    } finally {
-      redis.disconnect();
     }
   }
 
@@ -118,6 +104,12 @@ export class AppService {
 
   private getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+  }
+
+  private async ensureRedisConnection(): Promise<void> {
+    if (['wait', 'end'].includes(this.redis.status)) {
+      await this.redis.connect();
+    }
   }
 
   private isProduction(): boolean {

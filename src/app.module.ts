@@ -9,6 +9,7 @@ import { AppService } from './app.service';
 import { GraphqlExceptionFilter } from './common/presentation/graphql-exception.filter';
 import './common/presentation/graphql.enums';
 import { DatabaseModule } from './common/infrastructure/database.module';
+import { RedisModule } from './common/infrastructure/redis/redis.module';
 import { ClientsModule } from './modules/clients/clients.module';
 import { AccountsModule } from './modules/accounts/accounts.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
@@ -17,6 +18,7 @@ import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.mod
 @Module({
   imports: [
     DatabaseModule,
+    RedisModule,
     TerminusModule,
     ClientsModule,
     AccountsModule,
