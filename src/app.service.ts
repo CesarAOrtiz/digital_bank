@@ -52,6 +52,11 @@ export class AppService {
       lazyConnect: true,
       connectTimeout: 3000,
     });
+    let lastError: Error | null = null;
+
+    redis.on('error', (error) => {
+      lastError = error;
+    });
 
     try {
       await redis.connect();
@@ -62,9 +67,12 @@ export class AppService {
 
       return indicator.up();
     } catch (error) {
+      const rootCause = lastError ?? (error instanceof Error ? error : null);
       throw new HealthCheckError(
         'Redis check failed',
-        indicator.down({ message: this.getErrorMessage(error) }),
+        indicator.down({
+          message: this.getErrorMessage(rootCause ?? error),
+        }),
       );
     } finally {
       redis.disconnect();
