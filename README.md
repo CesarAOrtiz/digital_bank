@@ -1,98 +1,482 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Digital Bank
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Microservicio backend bancario construido con NestJS, GraphQL y PostgreSQL, diseñado para manejar clientes, cuentas y transacciones financieras multi-moneda.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+El proyecto prioriza:
 
-## Description
+- consistencia transaccional
+- control de concurrencia
+- precisión en cálculos financieros
+- arquitectura modular clara
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Resumen
 
-## Project setup
+El sistema implementa:
 
-```bash
-$ npm install
+- gestión de clientes
+- gestión de cuentas bancarias
+- depósitos
+- retiros
+- transferencias
+- transferencias multi-moneda
+- tasas de cambio versionadas
+- health checks del sistema
+
+El API principal es GraphQL.
+
+El esquema generado se escribe automáticamente en:
+
+`src/schema.gql`
+
+## Stack Tecnológico
+
+- NestJS
+- GraphQL (Apollo)
+- TypeORM
+- PostgreSQL
+- `decimal.js` para cálculos monetarios
+- `@nestjs/terminus` para health checks
+
+Dependencias preparadas para integración futura:
+
+- Redis
+- Elasticsearch
+
+## Arquitectura
+
+El proyecto utiliza una arquitectura DDD-light modular, donde cada módulo se divide en capas claras:
+
+```text
+src/modules/<module>/
+  domain/
+  application/
+  infrastructure/
+  presentation/
 ```
 
-## Compile and run the project
+Responsabilidades de cada capa:
 
-```bash
-# development
-$ npm run start
+| Capa             | Responsabilidad                            |
+| ---------------- | ------------------------------------------ |
+| `domain`         | reglas de negocio, entidades y excepciones |
+| `application`    | coordinación de casos de uso               |
+| `infrastructure` | persistencia, ORM, repositorios            |
+| `presentation`   | resolvers GraphQL                          |
 
-# watch mode
-$ npm run start:dev
+## Módulos
 
-# production mode
-$ npm run start:prod
+Los módulos principales del sistema son:
+
+- `clients`
+- `accounts`
+- `transactions`
+- `exchange-rates`
+
+Componentes compartidos:
+
+- `src/common`
+- `src/config`
+
+## Modelo de Dominio
+
+### Client
+
+Representa un cliente del banco.
+
+Campos principales:
+
+- `id`
+- `firstName`
+- `lastName`
+- `email`
+- `documentNumber`
+- `createdAt`
+- `updatedAt`
+
+Restricciones:
+
+- `email` único
+- `documentNumber` único
+
+### Account
+
+Cuenta bancaria asociada a un cliente.
+
+Campos principales:
+
+- `id`
+- `clientId`
+- `accountNumber`
+- `currency`
+- `balance`
+- `status`
+- `createdAt`
+- `updatedAt`
+
+Estados posibles:
+
+- `ACTIVE`
+- `BLOCKED`
+- `INACTIVE`
+
+Reglas:
+
+- una cuenta pertenece a un cliente
+- cada cuenta tiene una moneda fija
+- no se puede operar sobre cuentas bloqueadas o inactivas
+
+### Transaction
+
+Representa una operación financiera.
+
+Campos principales:
+
+- `id`
+- `type`
+- `sourceAccountId`
+- `destinationAccountId`
+- `sourceCurrency`
+- `destinationCurrency`
+- `sourceAmount`
+- `destinationAmount`
+- `exchangeRateUsed`
+- `idempotencyKey`
+- `description`
+- `createdAt`
+
+Tipos:
+
+- `DEPOSIT`
+- `WITHDRAWAL`
+- `TRANSFER`
+
+### Exchange Rate
+
+Representa una tasa de cambio efectiva en un momento determinado.
+
+Campos principales:
+
+- `id`
+- `baseCurrency`
+- `targetCurrency`
+- `rate`
+- `effectiveAt`
+- `createdAt`
+
+## Decisiones de Diseño
+
+### Transacciones ACID
+
+Todas las operaciones financieras se ejecutan dentro de transacciones de base de datos.
+
+Para transferencias:
+
+- se inicia una transacción
+- se bloquean ambas cuentas con `pessimistic_write`
+- el orden de bloqueo se normaliza por `id`
+- se valida saldo
+- se aplica débito/crédito
+- se persiste la transacción
+- se realiza `commit`
+
+Esto evita inconsistencias y reduce el riesgo de deadlocks.
+
+### Estrategia de Concurrencia
+
+Las cuentas involucradas en transferencias se bloquean usando:
+
+`pessimistic_write`
+
+El orden de bloqueo se normaliza:
+
+```text
+if accountA.id < accountB.id
+  lock A
+  lock B
+else
+  lock B
+  lock A
 ```
 
-## Run tests
+Esto reduce significativamente la probabilidad de deadlocks.
 
-```bash
-# unit tests
-$ npm run test
+### Precisión Monetaria
 
-# e2e tests
-$ npm run test:e2e
+Los cálculos financieros usan `decimal.js`.
 
-# test coverage
-$ npm run test:cov
+Escalas utilizadas:
+
+- `amount`: `decimal(18,2)`
+- `exchange rate`: `decimal(18,6)`
+
+El redondeo usa:
+
+`ROUND_HALF_EVEN`
+
+también conocido como banker's rounding.
+
+### Idempotencia
+
+Las operaciones financieras aceptan el campo:
+
+`idempotencyKey`
+
+La implementación:
+
+- detecta reutilización con payload distinto
+- evita ejecuciones duplicadas
+- maneja condiciones de carrera en claves duplicadas
+
+Si la misma clave se reutiliza para otra operación incompatible, el sistema lanza:
+
+`IDEMPOTENCY_KEY_REUSE`
+
+### Inmutabilidad de Transacciones
+
+Las transacciones financieras se modelan como registros inmutables.
+
+Reglas:
+
+- se crean una sola vez
+- no se editan
+- no se borran
+
+Cualquier corrección futura debe representarse como una transacción compensatoria.
+
+Esto preserva la integridad histórica del sistema.
+
+### Versionado de Tasas de Cambio
+
+Las tasas de cambio se tratan como registros históricos versionados.
+
+Reglas:
+
+- una tasa representa un valor efectivo en un momento
+- cuando cambia la tasa se inserta una nueva fila
+- las tasas existentes no se sobrescriben
+
+Las consultas utilizan la última tasa vigente según `effectiveAt`.
+
+### Semántica de `exchangeRate`
+
+La query:
+
+```graphql
+exchangeRate(baseCurrency, targetCurrency): ExchangeRate!
 ```
 
-## Deployment
+es non-null intencionalmente.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Si no existe tasa vigente, el sistema lanza:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+`ExchangeRateNotConfiguredException`
+
+La ausencia de tasa se trata como error de configuración, no como resultado normal del negocio.
+
+### Manejo de Errores
+
+Las excepciones del dominio se exponen en GraphQL con códigos claros:
+
+- `INSUFFICIENT_FUNDS`
+- `ACCOUNT_BLOCKED`
+- `ACCOUNT_INACTIVE`
+- `EXCHANGE_RATE_NOT_CONFIGURED`
+- `IDEMPOTENCY_KEY_REUSE`
+
+Estos códigos se entregan en:
+
+`extensions.code`
+
+permitiendo manejo de errores progamados.
+
+## API GraphQL
+
+### Mutations
+
+- `createClient`
+- `createAccount`
+- `createExchangeRate`
+- `deposit`
+- `withdraw`
+- `transfer`
+
+### Queries
+
+- `client(id)`
+- `account(id)`
+- `accountByAccountNumber(accountNumber)`
+- `accountsByClient(clientId)`
+- `searchClients(term)`
+- `searchAccounts(term)`
+- `searchTransactions(filters)`
+- `exchangeRate(baseCurrency, targetCurrency)`
+
+## Quick Start
+
+### Instalar dependencias
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm install
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Configurar variables de entorno
 
-## Resources
+Copiar `.env.example` y ajustar valores si es necesario.
 
-Check out a few resources that may come in handy when working with NestJS:
+### Ejecutar migraciones
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+npm run migration:run:dev
+```
 
-## Support
+### Iniciar el servidor
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+npm run start:dev
+```
 
-## Stay in touch
+### Abrir GraphQL Playground
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+`http://localhost:3000/graphql`
 
-## License
+## Ejemplos de Operaciones GraphQL
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Crear cliente
+
+```graphql
+mutation {
+  createClient(
+    input: {
+      firstName: "John"
+      lastName: "Doe"
+      email: "john@example.com"
+      documentNumber: "123456"
+    }
+  ) {
+    id
+  }
+}
+```
+
+### Crear cuenta
+
+```graphql
+mutation {
+  createAccount(
+    input: {
+      clientId: "CLIENT_ID"
+      accountNumber: "ACC-001"
+      currency: USD
+      initialBalance: "1000"
+    }
+  ) {
+    id
+    balance
+  }
+}
+```
+
+### Depositar
+
+```graphql
+mutation {
+  deposit(input: { accountId: "ACCOUNT_ID", amount: "100" }) {
+    id
+    sourceAmount
+  }
+}
+```
+
+### Transferir
+
+```graphql
+mutation {
+  transfer(
+    input: {
+      sourceAccountId: "ACCOUNT_A"
+      destinationAccountId: "ACCOUNT_B"
+      amount: "50"
+    }
+  ) {
+    id
+    sourceAmount
+    destinationAmount
+  }
+}
+```
+
+## Health Check
+
+Endpoint HTTP:
+
+`GET /health`
+
+Implementado con Terminus.
+
+Verifica:
+
+- PostgreSQL
+- Redis
+- Elasticsearch
+
+Si una dependencia crítica falla:
+
+`HTTP 503`
+
+## Variables de Entorno
+
+```env
+DB_HOST=
+DB_PORT=
+DB_USERNAME=
+DB_PASSWORD=
+DB_DATABASE=
+
+REDIS_HOST=
+REDIS_PORT=
+
+ELASTICSEARCH_NODE=
+
+PORT=3000
+NODE_ENV=development
+```
+
+## Migraciones
+
+Generar migración:
+
+```bash
+npm run migration:generate --name=NombreMigracion
+```
+
+Ejecutar migraciones:
+
+```bash
+npm run migration:run:dev
+```
+
+Revertir migración:
+
+```bash
+npm run migration:revert:dev
+```
+
+## Estado Actual
+
+Actualmente el proyecto incluye:
+
+- modelo de dominio
+- persistencia con migraciones
+- operaciones financieras principales
+- transferencias multi-moneda
+- control de concurrencia
+- idempotencia
+- health checks
+
+Fuera del alcance actual:
+
+- Redis como cache funcional de negocio
+- Elasticsearch como índice de búsqueda real
+- seeds
+- Docker
+- suite completa de tests
