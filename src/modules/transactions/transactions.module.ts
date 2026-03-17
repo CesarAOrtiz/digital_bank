@@ -5,7 +5,11 @@ import {
 } from '../../common/infrastructure/repository.tokens';
 import { AccountsModule } from '../accounts/accounts.module';
 import { ExchangeRatesModule } from '../exchange-rates/exchange-rates.module';
+import { TransactionIdempotencyService } from './application/transaction-idempotency.service';
+import { TransactionReadService } from './application/transaction-read.service';
+import { TransactionWriteService } from './application/transaction-write.service';
 import { TransactionsService } from './application/transactions.service';
+import { TransactionIdempotencyValidator } from './application/validators/transaction-idempotency.validator';
 import { TypeOrmFinancialTransactionManager } from './infrastructure/transaction-management/typeorm-financial-transaction.manager';
 import { TypeOrmTransactionRepository } from './infrastructure';
 import { TransactionsResolver } from './presentation';
@@ -14,6 +18,10 @@ import { TransactionsResolver } from './presentation';
   imports: [AccountsModule, ExchangeRatesModule],
   providers: [
     TypeOrmTransactionRepository,
+    TransactionIdempotencyValidator,
+    TransactionIdempotencyService,
+    TransactionReadService,
+    TransactionWriteService,
     TransactionsService,
     TransactionsResolver,
     {
