@@ -37,7 +37,7 @@ export class AppService {
     } catch (error) {
       throw new HealthCheckError(
         'Postgres check failed',
-        indicator.down({ message: this.getErrorMessage(error) }),
+        indicator.down({ message: this.getHealthErrorMessage('postgres', error) }),
       );
     }
   }
@@ -71,7 +71,7 @@ export class AppService {
       throw new HealthCheckError(
         'Redis check failed',
         indicator.down({
-          message: this.getErrorMessage(rootCause ?? error),
+          message: this.getHealthErrorMessage('redis', rootCause ?? error),
         }),
       );
     } finally {
@@ -90,12 +90,37 @@ export class AppService {
     } catch (error) {
       throw new HealthCheckError(
         'Elastic check failed',
-        indicator.down({ message: this.getErrorMessage(error), node }),
+        indicator.down({
+          message: this.getHealthErrorMessage('elastic', error),
+          node: this.isProduction() ? undefined : node,
+        }),
       );
+    }
+  }
+
+  private getHealthErrorMessage(
+    service: 'postgres' | 'redis' | 'elastic',
+    error: unknown,
+  ): string {
+    if (!this.isProduction()) {
+      return this.getErrorMessage(error);
+    }
+
+    switch (service) {
+      case 'postgres':
+        return 'Postgres unavailable';
+      case 'redis':
+        return 'Redis unavailable';
+      case 'elastic':
+        return 'Elasticsearch unavailable';
     }
   }
 
   private getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+  }
+
+  private isProduction(): boolean {
+    return process.env.NODE_ENV === 'production';
   }
 }
