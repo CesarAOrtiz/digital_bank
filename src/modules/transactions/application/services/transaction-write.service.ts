@@ -9,7 +9,6 @@ import {
 import { Currency, TransactionType } from '../../../../common/domain/enums';
 import {
   DomainRuleViolationException,
-  ExchangeRateNotConfiguredException,
   ResourceNotFoundException,
 } from '../../../../common/domain/exceptions';
 import {
@@ -18,7 +17,7 @@ import {
 import { RedisCacheService } from '../../../../common/infrastructure/redis/redis-cache.service';
 import { Account } from '../../../accounts/domain';
 import type { AccountRepository } from '../../../accounts/domain';
-import type { ExchangeRateRepository } from '../../../exchange-rates/domain';
+import { ExchangeRatesService } from '../../../exchange-rates/application/exchange-rates.service';
 import { Transaction } from '../../domain';
 import { TransactionIdempotencyService } from './transaction-idempotency.service';
 import type { DepositTransactionInput } from '../inputs/deposit-transaction.input';
@@ -32,6 +31,7 @@ export class TransactionWriteService {
   constructor(
     private readonly transactionIdempotencyService: TransactionIdempotencyService,
     private readonly redisCacheService: RedisCacheService,
+    private readonly exchangeRatesService: ExchangeRatesService,
   ) {}
 
   async deposit(data: DepositTransactionInput): Promise<Transaction> {
@@ -166,7 +166,6 @@ export class TransactionWriteService {
       },
       async ({
         accountRepository,
-        exchangeRateRepository,
         transactionRepository,
       }) => {
         const existing =
@@ -194,7 +193,6 @@ export class TransactionWriteService {
 
         const debitedSource = sourceAccount.withdraw(data.amount);
         const settlement = await this.resolveTransferSettlement(
-          exchangeRateRepository,
           sourceAccount.toPrimitives().currency,
           destinationAccount.toPrimitives().currency,
           data.amount,
@@ -319,7 +317,6 @@ export class TransactionWriteService {
   }
 
   private async resolveTransferSettlement(
-    exchangeRateRepository: ExchangeRateRepository,
     sourceCurrency: Currency,
     destinationCurrency: Currency,
     amount: string,
@@ -334,17 +331,10 @@ export class TransactionWriteService {
       };
     }
 
-    const exchangeRate = await exchangeRateRepository.findLatest(
+    const exchangeRate = await this.exchangeRatesService.findCurrent(
       sourceCurrency,
       destinationCurrency,
-      new Date(),
     );
-    if (!exchangeRate) {
-      throw new ExchangeRateNotConfiguredException(
-        sourceCurrency,
-        destinationCurrency,
-      );
-    }
 
     return {
       destinationAmount: formatMoney(
