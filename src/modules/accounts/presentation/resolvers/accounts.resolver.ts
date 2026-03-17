@@ -30,7 +30,7 @@ export class AccountsResolver {
     return AccountGraphqlMapper.toModel(account);
   }
 
-  @Query(() => AccountGraphqlModel, { name: 'account' })
+  @Query(() => AccountGraphqlModel, { name: 'accountByAccountNumber' })
   async findAccountByAccountNumber(
     @Args('accountNumber') accountNumber: string,
   ): Promise<AccountGraphqlModel> {
