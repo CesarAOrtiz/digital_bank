@@ -1,9 +1,9 @@
-import { Field, ObjectType } from '@nestjs/graphql';
+import { Field, ID, ObjectType } from '@nestjs/graphql';
 import { Currency } from '../../../../common/domain/enums';
 
 @ObjectType('ExchangeRate')
 export class ExchangeRateGraphqlModel {
-  @Field()
+  @Field(() => ID)
   id!: string;
 
   @Field(() => Currency)

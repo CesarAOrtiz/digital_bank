@@ -9,7 +9,7 @@ export class AccountGraphqlModel {
   @Field()
   accountNumber!: string;
 
-  @Field()
+  @Field(() => ID)
   clientId!: string;
 
   @Field(() => Currency)

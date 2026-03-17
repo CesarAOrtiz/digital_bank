@@ -5,7 +5,7 @@
 type Account {
   accountNumber: String!
   balance: String!
-  clientId: String!
+  clientId: ID!
   createdAt: DateTime!
   currency: Currency!
   id: ID!
@@ -31,7 +31,7 @@ type Client {
 
 input CreateAccountInput {
   accountNumber: String!
-  clientId: String!
+  clientId: ID!
   currency: Currency!
   initialBalance: String
 }
@@ -62,7 +62,7 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 scalar DateTime
 
 input DepositInput {
-  accountId: String!
+  accountId: ID!
   amount: String!
   description: String
   idempotencyKey: String
@@ -72,7 +72,7 @@ type ExchangeRate {
   baseCurrency: Currency!
   createdAt: DateTime!
   effectiveAt: DateTime!
-  id: String!
+  id: ID!
   rate: String!
   targetCurrency: Currency!
 }
@@ -135,13 +135,13 @@ enum TransactionType {
 input TransferInput {
   amount: String!
   description: String
-  destinationAccountId: String!
+  destinationAccountId: ID!
   idempotencyKey: String
-  sourceAccountId: String!
+  sourceAccountId: ID!
 }
 
 input WithdrawalInput {
-  accountId: String!
+  accountId: ID!
   amount: String!
   description: String
   idempotencyKey: String
