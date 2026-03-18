@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
@@ -16,6 +16,8 @@ import { AccountsModule } from './modules/accounts/accounts.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.module';
 import { SearchModule } from './modules/search/search.module';
+import { LoggingModule } from './common/infrastructure/logging/logging.module';
+import { RequestIdMiddleware } from './common/infrastructure/logging/request-id.middleware';
 
 @Module({
   imports: [
@@ -23,6 +25,7 @@ import { SearchModule } from './modules/search/search.module';
     ElasticsearchModule,
     RedisModule,
     TerminusModule,
+    LoggingModule,
     ClientsModule,
     AccountsModule,
     TransactionsModule,
@@ -45,4 +48,8 @@ import { SearchModule } from './modules/search/search.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}

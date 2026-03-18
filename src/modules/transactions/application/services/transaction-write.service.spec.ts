@@ -14,6 +14,7 @@ import { TransactionIdempotencyService } from './transaction-idempotency.service
 import { TransactionWriteService } from './transaction-write.service';
 import { ExchangeRatesService } from '../../../exchange-rates/application/exchange-rates.service';
 import { RedisCacheService } from '../../../../common/infrastructure/redis/redis-cache.service';
+import { AppLogger } from '../../../../common/infrastructure/logging/app-logger.service';
 
 describe('TransactionWriteService', () => {
   function buildAccount(overrides: Partial<ReturnType<Account['toPrimitives']>> = {}) {
@@ -118,11 +119,18 @@ describe('TransactionWriteService', () => {
       indexTransaction: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<SearchIndexingService>;
 
+    const appLogger = {
+      log: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as unknown as jest.Mocked<AppLogger>;
+
     const service = new TransactionWriteService(
       transactionIdempotencyService,
       redisCacheService,
       exchangeRatesService,
       searchIndexingService,
+      appLogger,
     );
 
     return {
@@ -132,6 +140,7 @@ describe('TransactionWriteService', () => {
       redisCacheService,
       exchangeRatesService,
       searchIndexingService,
+      appLogger,
     };
   }
 
@@ -141,6 +150,7 @@ describe('TransactionWriteService', () => {
       context,
       redisCacheService,
       searchIndexingService,
+      appLogger,
     } = createSut();
     const account = buildAccount();
     context.accountRepository.findById.mockResolvedValue(account);
@@ -166,6 +176,18 @@ describe('TransactionWriteService', () => {
     expect(redisCacheService.delMany).toHaveBeenCalledWith([
       RedisCacheKeys.clientAccounts(account.toPrimitives().clientId),
     ]);
+    expect(appLogger.log).toHaveBeenCalledWith('transaction.deposit.started', {
+      accountId: account.id,
+      amount: '25.00',
+      idempotencyKey: 'dep-1',
+    });
+    expect(appLogger.log).toHaveBeenCalledWith(
+      'transaction.deposit.completed',
+      expect.objectContaining({
+        transactionId: primitives.id,
+        transactionType: TransactionType.DEPOSIT,
+      }),
+    );
     expect(searchIndexingService.indexAccount).toHaveBeenCalledWith(savedAccount);
     expect(searchIndexingService.indexTransaction).toHaveBeenCalledWith(result);
   });
@@ -210,6 +232,7 @@ describe('TransactionWriteService', () => {
       context,
       redisCacheService,
       searchIndexingService,
+      appLogger,
     } = createSut();
     context.accountRepository.findById.mockResolvedValue(
       buildAccount({ balance: '10.00' }),
@@ -227,6 +250,14 @@ describe('TransactionWriteService', () => {
     expect(context.accountRepository.save).not.toHaveBeenCalled();
     expect(context.transactionRepository.save).not.toHaveBeenCalled();
     expect(redisCacheService.delMany).not.toHaveBeenCalled();
+    expect(appLogger.warn).toHaveBeenCalledWith(
+      'transaction.withdraw.insufficient_funds',
+      expect.objectContaining({
+        transactionType: TransactionType.WITHDRAWAL,
+        accountId: 'account-1',
+        attemptedAmount: '25.00',
+      }),
+    );
     expect(searchIndexingService.indexAccount).not.toHaveBeenCalled();
     expect(searchIndexingService.indexTransaction).not.toHaveBeenCalled();
   });
@@ -263,7 +294,7 @@ describe('TransactionWriteService', () => {
   });
 
   it('transfer debe fallar cuando la cuenta origen y destino son la misma', async () => {
-    const { service, transactionIdempotencyService } = createSut();
+    const { service, transactionIdempotencyService, appLogger } = createSut();
 
     await expect(
       service.transfer({
@@ -278,6 +309,14 @@ describe('TransactionWriteService', () => {
     expect(
       transactionIdempotencyService.executeIdempotentTransaction,
     ).not.toHaveBeenCalled();
+    expect(appLogger.warn).toHaveBeenCalledWith(
+      'transaction.transfer.failed',
+      expect.objectContaining({
+        sourceAccountId: 'account-1',
+        destinationAccountId: 'account-1',
+        errorCode: 'DOMAIN_RULE_VIOLATION',
+      }),
+    );
   });
 
   it('transfer debe mover fondos en la misma moneda', async () => {
@@ -400,6 +439,7 @@ describe('TransactionWriteService', () => {
       transactionIdempotencyService,
       redisCacheService,
       searchIndexingService,
+      appLogger,
     } = createSut();
     const existing = buildTransaction({
       sourceAmount: '25.00',
@@ -420,6 +460,14 @@ describe('TransactionWriteService', () => {
       }),
     ).rejects.toBeInstanceOf(IdempotencyKeyReuseException);
 
+    expect(appLogger.warn).toHaveBeenCalledWith(
+      'transaction.deposit.idempotency_reused',
+      expect.objectContaining({
+        transactionType: TransactionType.DEPOSIT,
+        accountId: 'account-1',
+        attemptedAmount: '50.00',
+      }),
+    );
     expect(redisCacheService.delMany).not.toHaveBeenCalled();
     expect(searchIndexingService.indexAccount).not.toHaveBeenCalled();
     expect(searchIndexingService.indexTransaction).not.toHaveBeenCalled();

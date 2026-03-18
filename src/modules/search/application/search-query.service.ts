@@ -6,6 +6,7 @@ import {
   TransactionType,
 } from '../../../common/domain/enums';
 import { ELASTIC_CLIENT } from '../../../common/infrastructure/elasticsearch/elasticsearch.tokens';
+import { AppLogger } from '../../../common/infrastructure/logging/app-logger.service';
 import { Account } from '../../accounts/domain';
 import { Client } from '../../clients/domain';
 import {
@@ -58,6 +59,7 @@ interface TransactionSearchDocument {
 export class SearchQueryService {
   constructor(
     @Inject(ELASTIC_CLIENT) private readonly elastic: ElasticClient,
+    private readonly appLogger: AppLogger,
   ) {}
 
   async searchClients(term: string): Promise<Client[]> {
@@ -65,6 +67,7 @@ export class SearchQueryService {
     if (!normalizedTerm) {
       return [];
     }
+    const startedAt = Date.now();
 
     const response = await this.elastic.search<ClientSearchDocument>({
       index: CLIENTS_INDEX,
@@ -102,7 +105,7 @@ export class SearchQueryService {
       size: 25,
     });
 
-    return response.hits.hits
+    const clients = response.hits.hits
       .map((hit) => hit._source)
       .filter((doc): doc is ClientSearchDocument => !!doc)
       .map(
@@ -117,6 +120,15 @@ export class SearchQueryService {
             updatedAt: new Date(doc.updatedAt),
           }),
       );
+
+    this.appLogger.log('search.clients.executed', {
+      index: CLIENTS_INDEX,
+      term: normalizedTerm,
+      resultCount: clients.length,
+      durationMs: Date.now() - startedAt,
+    });
+
+    return clients;
   }
 
   async searchAccounts(term: string): Promise<Account[]> {
@@ -124,6 +136,7 @@ export class SearchQueryService {
     if (!normalizedTerm) {
       return [];
     }
+    const startedAt = Date.now();
 
     const response = await this.elastic.search<AccountSearchDocument>({
       index: ACCOUNTS_INDEX,
@@ -154,7 +167,7 @@ export class SearchQueryService {
       size: 25,
     });
 
-    return response.hits.hits
+    const accounts = response.hits.hits
       .map((hit) => hit._source)
       .filter((doc): doc is AccountSearchDocument => !!doc)
       .map(
@@ -170,11 +183,21 @@ export class SearchQueryService {
             updatedAt: new Date(doc.updatedAt),
           }),
       );
+
+    this.appLogger.log('search.accounts.executed', {
+      index: ACCOUNTS_INDEX,
+      term: normalizedTerm,
+      resultCount: accounts.length,
+      durationMs: Date.now() - startedAt,
+    });
+
+    return accounts;
   }
 
   async searchTransactions(
     filters: TransactionSearchFilters,
   ): Promise<Transaction[]> {
+    const startedAt = Date.now();
     const must: object[] = [];
     const filter: object[] = [];
 
@@ -278,7 +301,7 @@ export class SearchQueryService {
       size: 50,
     });
 
-    return response.hits.hits
+    const transactions = response.hits.hits
       .map((hit) => hit._source)
       .filter((doc): doc is TransactionSearchDocument => !!doc)
       .map(
@@ -301,5 +324,23 @@ export class SearchQueryService {
             createdAt: new Date(doc.createdAt),
           }),
       );
+
+    this.appLogger.log('search.transactions.executed', {
+      index: TRANSACTIONS_INDEX,
+      filters: {
+        text: filters.text?.trim() || undefined,
+        type: filters.type,
+        accountId: filters.accountId,
+        sourceAccountId: filters.sourceAccountId,
+        destinationAccountId: filters.destinationAccountId,
+        currency: filters.currency,
+        dateFrom: filters.dateFrom?.toISOString(),
+        dateTo: filters.dateTo?.toISOString(),
+      },
+      resultCount: transactions.length,
+      durationMs: Date.now() - startedAt,
+    });
+
+    return transactions;
   }
 }

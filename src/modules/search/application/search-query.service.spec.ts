@@ -1,4 +1,5 @@
 import { AccountStatus, Currency, TransactionType } from '../../../common/domain/enums';
+import { AppLogger } from '../../../common/infrastructure/logging/app-logger.service';
 import { SearchQueryService } from './search-query.service';
 
 describe('SearchQueryService', () => {
@@ -6,10 +7,15 @@ describe('SearchQueryService', () => {
     const elastic = {
       search: jest.fn(),
     };
+    const appLogger = {
+      log: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    } as unknown as jest.Mocked<AppLogger>;
 
-    const service = new SearchQueryService(elastic as never);
+    const service = new SearchQueryService(elastic as never, appLogger);
 
-    return { service, elastic };
+    return { service, elastic, appLogger };
   }
 
   it('searchClients debe devolver arreglo vacío y no consultar Elastic si el término está vacío', async () => {

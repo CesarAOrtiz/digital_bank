@@ -407,6 +407,53 @@ Ejemplos:
 
 Esto facilita manejo programático desde clientes API o frontends.
 
+## Logging
+
+La aplicación usa logs estructurados en formato JSON para facilitar observabilidad y depuración.
+
+Se registran eventos clave del dominio, incluyendo:
+
+- inicio y finalización de transacciones
+- errores de validación de negocio
+- reutilización de `idempotencyKey`
+- fallos por fondos insuficientes
+- ausencia de tasa de cambio
+- búsquedas ejecutadas en Elastic con filtros y cantidad de resultados
+
+Los logs incluyen campos base fijos en cada evento:
+
+- `timestamp`
+- `level`
+- `event`
+- `requestId`
+- `service`
+- `env`
+
+Además, cada evento incorpora contexto operativo como `transactionId`, `accountId`, `sourceAccountId`, `destinationAccountId` e `idempotencyKey`, evitando exponer credenciales o datos sensibles.
+
+Además, cada request HTTP/GraphQL recibe un `requestId` propagado mediante middleware y devuelto en el header `x-request-id`.
+
+Ejemplo de log:
+
+```json
+{
+  "timestamp": "2026-03-18T18:12:10.221Z",
+  "level": "info",
+  "event": "transaction.transfer.completed",
+  "requestId": "0b8c2d7d-8b1a-4d0b-9ec2-7b7d7d3a1f02",
+  "service": "digital_bank",
+  "env": "production",
+  "transactionId": "8d0f7b3b-1d51-4d57-a0f7-2d2128d40a12",
+  "sourceAccountId": "acc-001",
+  "destinationAccountId": "acc-002",
+  "sourceAmount": "100.00",
+  "destinationAmount": "6200.00",
+  "sourceCurrency": "USD",
+  "destinationCurrency": "DOP",
+  "idempotencyKey": "req-123"
+}
+```
+
 ## Cómo Ejecutarlo
 
 ### 1. Instalar dependencias
@@ -474,7 +521,7 @@ GraphQL queda disponible en:
 Levantar todo el stack:
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 Esto levantará:
