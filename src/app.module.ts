@@ -15,6 +15,7 @@ import { ClientsModule } from './modules/clients/clients.module';
 import { AccountsModule } from './modules/accounts/accounts.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.module';
+import { SearchModule } from './modules/search/search.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ExchangeRatesModule } from './modules/exchange-rates/exchange-rates.mod
     AccountsModule,
     TransactionsModule,
     ExchangeRatesModule,
+    SearchModule,
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
