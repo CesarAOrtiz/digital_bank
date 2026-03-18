@@ -474,7 +474,7 @@ GraphQL queda disponible en:
 Levantar todo el stack:
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 Esto levantará:
@@ -484,22 +484,83 @@ Esto levantará:
 - Redis
 - Elasticsearch
 
-Además, el contenedor de la app ejecuta automáticamente:
-
-- migraciones
-- seeds
-- arranque del servidor
-
-Scripts usados dentro del contenedor:
-
-- `npm run migration:run:prod`
-- `npm run seed:prod`
-- `npm run start:prod`
-
 Rutas útiles:
 
 - GraphQL: `http://localhost:3000/graphql`
 - Health: `http://localhost:3000/health`
+
+### Migraciones y seeds
+
+Las migraciones y los seeds no se ejecutan automáticamente al iniciar el stack.
+Se ejecutan manualmente para evitar que se repitan en cada `docker compose up` y para desacoplar el bootstrap de datos del arranque normal de la aplicación.
+
+Ejecutar migraciones:
+
+```bash
+docker compose run --rm app npm run migration:run:prod
+```
+
+Ejecutar seeds:
+
+```bash
+docker compose run --rm app npm run seed:prod
+```
+
+Revertir la última migración:
+
+```bash
+docker compose run --rm app npm run migration:revert:prod
+```
+
+Resetear datos seed:
+
+```bash
+docker compose run --rm app npm run seed:reset:prod
+```
+
+### Flujo Recomendado
+
+Primera vez:
+
+```bash
+docker compose up --build
+docker compose run --rm app npm run migration:run:prod
+docker compose run --rm app npm run seed:prod
+```
+
+Siguientes veces:
+
+```bash
+docker compose up
+```
+
+Cuando agregues nuevas migraciones:
+
+```bash
+docker compose run --rm app npm run migration:run:prod
+```
+
+Cuando quieras recargar datos seed:
+
+```bash
+docker compose run --rm app npm run seed:prod
+```
+
+O si quieres resetearlos:
+
+```bash
+docker compose run --rm app npm run seed:reset:prod
+```
+
+### Nota De Diseño
+
+Esta decisión desacopla:
+
+- el arranque de la aplicación
+- la evolución del esquema
+- la carga de datos demo
+
+Esto evita efectos secundarios no deseados en reinicios del servicio y da más control operativo.
 
 ### 5. Cargar datos seed
 

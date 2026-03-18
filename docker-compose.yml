@@ -35,7 +35,7 @@ services:
       ELASTICSEARCH_USERNAME: ""
       ELASTICSEARCH_PASSWORD: ""
       ELASTICSEARCH_API_KEY: ""
-    command: ["npm", "run", "start:docker"]
+    command: ["npm", "run", "start:prod"]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
       interval: 20s
