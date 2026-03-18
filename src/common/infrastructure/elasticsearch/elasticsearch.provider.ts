@@ -1,12 +1,8 @@
 import 'dotenv/config';
 import { Logger } from '@nestjs/common';
 import { Client as ElasticClient } from '@elastic/elasticsearch';
+import { getOptionalEnv } from '../env/env.utils';
 import { ELASTIC_CLIENT } from './elasticsearch.tokens';
-
-function getOptionalEnv(name: string): string | undefined {
-  const value = process.env[name]?.trim();
-  return value ? value : undefined;
-}
 
 export const elasticsearchProvider = {
   provide: ELASTIC_CLIENT,

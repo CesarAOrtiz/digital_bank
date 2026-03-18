@@ -1,0 +1,101 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: digital-bank-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: digital_bank
+      DB_SSL: "false"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      REDIS_CONNECT_TIMEOUT: 3000
+      ELASTICSEARCH_NODE: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: ""
+      ELASTICSEARCH_PASSWORD: ""
+      ELASTICSEARCH_API_KEY: ""
+    command: >
+      sh -c "
+      node ./node_modules/typeorm/cli.js -d dist/config/typeorm-cli-prod.config.js migration:run &&
+      node dist/seeds/run-seeds.js &&
+      node dist/main.js
+      "
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: digital-bank-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: digital_bank
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d digital_bank"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: digital-bank-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    container_name: digital-bank-elasticsearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:9200 >/dev/null 2>&1 || exit 1"
+        ]
+      interval: 20s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+volumes:
+  postgres_data:
+  elastic_data:

@@ -2,13 +2,17 @@ import 'dotenv/config';
 import { Logger } from '@nestjs/common';
 import { Client as ElasticClient } from '@elastic/elasticsearch';
 import { DataSource } from 'typeorm';
-import { AccountStatus, Currency, TransactionType } from '../common/domain/enums';
+import {
+  AccountStatus,
+  Currency,
+  TransactionType,
+} from '../common/domain/enums';
+import { getOptionalEnv } from '../common/infrastructure/env/env.utils';
 import { createDatabaseOptions } from '../config/database.config';
 import { Account } from '../modules/accounts/domain';
 import { AccountOrmEntity } from '../modules/accounts/infrastructure';
 import { Client } from '../modules/clients/domain';
 import { ClientOrmEntity } from '../modules/clients/infrastructure';
-import { ExchangeRate } from '../modules/exchange-rates/domain';
 import { ExchangeRateOrmEntity } from '../modules/exchange-rates/infrastructure';
 import { SearchIndexingService } from '../modules/search/application/search-indexing.service';
 import { Transaction } from '../modules/transactions/domain';
@@ -21,11 +25,6 @@ const TRANSACTIONS_INDEX = 'transactions';
 
 interface SeedOptions {
   reset: boolean;
-}
-
-function getOptionalEnv(name: string): string | undefined {
-  const value = process.env[name]?.trim();
-  return value ? value : undefined;
 }
 
 const clients = [
@@ -273,13 +272,20 @@ const exchangeRateIds = exchangeRates.map((exchangeRate) => exchangeRate.id);
 const transactionIds = transactions.map((transaction) => transaction.id);
 
 function parseOptions(argv: string[]): SeedOptions {
+  const resetFromArgv = argv.includes('--reset');
+  const resetFromNpmConfig = ['true', '1', ''].includes(
+    (process.env.npm_config_reset ?? '').trim().toLowerCase(),
+  );
+
   return {
-    reset: argv.includes('--reset'),
+    reset: resetFromArgv || resetFromNpmConfig,
   };
 }
 
 async function resetSeedData(dataSource: DataSource): Promise<void> {
-  logger.log('Modo reset activado. Eliminando únicamente registros seed conocidos.');
+  logger.log(
+    'Modo reset activado. Eliminando únicamente registros seed conocidos.',
+  );
 
   await dataSource.getRepository(TransactionOrmEntity).delete(transactionIds);
   await dataSource.getRepository(AccountOrmEntity).delete(accountIds);
@@ -302,8 +308,8 @@ async function deleteElasticDocuments(
         typeof error === 'object' &&
         error &&
         'meta' in error &&
-        typeof (error as { meta?: { statusCode?: number } }).meta?.statusCode ===
-          'number'
+        typeof (error as { meta?: { statusCode?: number } }).meta
+          ?.statusCode === 'number'
           ? (error as { meta?: { statusCode?: number } }).meta?.statusCode
           : undefined;
 
@@ -317,7 +323,9 @@ async function deleteElasticDocuments(
 }
 
 async function resetElasticData(elastic: ElasticClient): Promise<void> {
-  logger.log('Modo reset activado. Eliminando documentos seed conocidos en Elastic.');
+  logger.log(
+    'Modo reset activado. Eliminando documentos seed conocidos en Elastic.',
+  );
 
   await deleteElasticDocuments(elastic, TRANSACTIONS_INDEX, transactionIds);
   await deleteElasticDocuments(elastic, ACCOUNTS_INDEX, accountIds);
@@ -336,7 +344,9 @@ async function seedDatabase(dataSource: DataSource): Promise<void> {
 async function syncElastic(options: SeedOptions): Promise<void> {
   const node = getOptionalEnv('ELASTICSEARCH_NODE');
   if (!node) {
-    logger.log('ELASTICSEARCH_NODE no está configurado. Se omite sincronización con Elastic.');
+    logger.log(
+      'ELASTICSEARCH_NODE no está configurado. Se omite sincronización con Elastic.',
+    );
     return;
   }
 
@@ -360,8 +370,14 @@ async function syncElastic(options: SeedOptions): Promise<void> {
     if (options.reset) {
       await resetElasticData(elastic);
     }
-    await Promise.all(clients.map((client) => indexingService.indexClient(new Client(client))));
-    await Promise.all(accounts.map((account) => indexingService.indexAccount(new Account(account))));
+    await Promise.all(
+      clients.map((client) => indexingService.indexClient(new Client(client))),
+    );
+    await Promise.all(
+      accounts.map((account) =>
+        indexingService.indexAccount(new Account(account)),
+      ),
+    );
     await Promise.all(
       transactions.map((transaction) =>
         indexingService.indexTransaction(new Transaction(transaction)),
@@ -379,7 +395,6 @@ async function syncElastic(options: SeedOptions): Promise<void> {
 async function run(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   const dataSource = new DataSource(createDatabaseOptions('development-cli'));
-
   try {
     await dataSource.initialize();
     logger.log('Conexión a PostgreSQL inicializada para seeds.');
@@ -400,7 +415,8 @@ async function run(): Promise<void> {
 }
 
 run().catch((error: unknown) => {
-  const message = error instanceof Error ? error.stack ?? error.message : String(error);
+  const message =
+    error instanceof Error ? (error.stack ?? error.message) : String(error);
   logger.error('La ejecución de seeds falló.', message);
   process.exit(1);
 });

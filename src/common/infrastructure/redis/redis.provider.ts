@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { Logger } from '@nestjs/common';
 import Redis from 'ioredis';
+import { getOptionalEnv } from '../env/env.utils';
 import { REDIS_CLIENT } from './redis.tokens';
 
 export const redisProvider = {
@@ -8,15 +9,15 @@ export const redisProvider = {
   useFactory: () => {
     const logger = new Logger('RedisClientProvider');
     const client = new Redis({
-      host: process.env.REDIS_HOST,
-      port: Number(process.env.REDIS_PORT ?? 6379),
-      username: process.env.REDIS_USERNAME || undefined,
-      password: process.env.REDIS_PASSWORD || undefined,
-      db: Number(process.env.REDIS_DB ?? 0),
+      host: getOptionalEnv('REDIS_HOST'),
+      port: Number(getOptionalEnv('REDIS_PORT') ?? 6379),
+      username: getOptionalEnv('REDIS_USERNAME'),
+      password: getOptionalEnv('REDIS_PASSWORD'),
+      db: Number(getOptionalEnv('REDIS_DB') ?? 0),
       maxRetriesPerRequest: 1,
       enableReadyCheck: true,
       lazyConnect: true,
-      connectTimeout: Number(process.env.REDIS_CONNECT_TIMEOUT ?? 3000),
+      connectTimeout: Number(getOptionalEnv('REDIS_CONNECT_TIMEOUT') ?? 3000),
       retryStrategy: (times) => Math.min(times * 200, 2000),
     });
 

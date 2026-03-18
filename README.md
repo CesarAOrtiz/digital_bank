@@ -427,6 +427,7 @@ DB_PORT=
 DB_USERNAME=
 DB_PASSWORD=
 DB_DATABASE=
+DB_SSL=false
 
 REDIS_HOST=
 REDIS_PORT=
@@ -467,6 +468,32 @@ npm run start:dev
 GraphQL queda disponible en:
 
 `http://localhost:3000/graphql`
+
+## Ejecutar Con Docker
+
+Levantar todo el stack:
+
+```bash
+docker-compose up --build
+```
+
+Esto levantará:
+
+- API NestJS
+- PostgreSQL
+- Redis
+- Elasticsearch
+
+Además, el contenedor de la app ejecuta automáticamente:
+
+- migraciones
+- seeds
+- arranque del servidor
+
+Rutas útiles:
+
+- GraphQL: `http://localhost:3000/graphql`
+- Health: `http://localhost:3000/health`
 
 ### 5. Cargar datos seed
 

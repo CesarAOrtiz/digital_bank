@@ -21,6 +21,17 @@ function isTypeScriptRuntime(): boolean {
   return __filename.endsWith('.ts');
 }
 
+function getSslConfig() {
+  const rawValue = process.env.DB_SSL?.trim().toLowerCase();
+  if (!rawValue || ['false', '0', 'no'].includes(rawValue)) {
+    return false;
+  }
+
+  return {
+    rejectUnauthorized: false,
+  };
+}
+
 function resolveMigrations(mode: DatabaseConfigMode): string[] {
   if (mode === 'production-cli') {
     return [join('dist', 'migrations', '*.js')];
@@ -49,8 +60,6 @@ export function createDatabaseOptions(
     migrations: resolveMigrations(mode),
     synchronize: false,
     logging: false,
-    ssl: {
-      rejectUnauthorized: false,
-    },
+    ssl: getSslConfig(),
   };
 }

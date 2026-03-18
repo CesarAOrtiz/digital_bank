@@ -7,6 +7,7 @@ import {
 import { Client as ElasticClient } from '@elastic/elasticsearch';
 import Redis from 'ioredis';
 import { DataSource } from 'typeorm';
+import { getOptionalEnv } from './common/infrastructure/env/env.utils';
 import { TYPEORM_DATA_SOURCE } from './common/infrastructure/database.tokens';
 import { ELASTIC_CLIENT } from './common/infrastructure/elasticsearch/elasticsearch.tokens';
 import { REDIS_CLIENT } from './common/infrastructure/redis/redis.tokens';
@@ -71,7 +72,7 @@ export class AppService {
 
   async checkElastic(): Promise<HealthIndicatorResult> {
     const indicator = this.healthIndicatorService.check('elastic');
-    const node = this.getOptionalEnv('ELASTICSEARCH_NODE');
+    const node = getOptionalEnv('ELASTICSEARCH_NODE');
 
     try {
       await this.elastic.ping();
@@ -108,12 +109,6 @@ export class AppService {
   private getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
   }
-
-  private getOptionalEnv(name: string): string | undefined {
-    const value = process.env[name]?.trim();
-    return value ? value : undefined;
-  }
-
   private async ensureRedisConnection(): Promise<void> {
     if (['wait', 'end'].includes(this.redis.status)) {
       await this.redis.connect();
