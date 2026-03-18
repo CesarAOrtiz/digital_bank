@@ -25,6 +25,7 @@ const TRANSACTIONS_INDEX = 'transactions';
 
 interface SeedOptions {
   reset: boolean;
+  purge: boolean;
 }
 
 const clients = [
@@ -273,18 +274,23 @@ const transactionIds = transactions.map((transaction) => transaction.id);
 
 function parseOptions(argv: string[]): SeedOptions {
   const resetFromArgv = argv.includes('--reset');
-  const resetFromNpmConfig = ['true', '1', ''].includes(
+  const resetFromNpmConfig = ['true', '1'].includes(
     (process.env.npm_config_reset ?? '').trim().toLowerCase(),
+  );
+  const purgeFromArgv = argv.includes('--purge');
+  const purgeFromNpmConfig = ['true', '1'].includes(
+    (process.env.npm_config_purge ?? '').trim().toLowerCase(),
   );
 
   return {
     reset: resetFromArgv || resetFromNpmConfig,
+    purge: purgeFromArgv || purgeFromNpmConfig,
   };
 }
 
 async function resetSeedData(dataSource: DataSource): Promise<void> {
   logger.log(
-    'Modo reset activado. Eliminando únicamente registros seed conocidos.',
+    'Eliminando únicamente registros seed conocidos.',
   );
 
   await dataSource.getRepository(TransactionOrmEntity).delete(transactionIds);
@@ -324,7 +330,7 @@ async function deleteElasticDocuments(
 
 async function resetElasticData(elastic: ElasticClient): Promise<void> {
   logger.log(
-    'Modo reset activado. Eliminando documentos seed conocidos en Elastic.',
+    'Eliminando documentos seed conocidos en Elastic.',
   );
 
   await deleteElasticDocuments(elastic, TRANSACTIONS_INDEX, transactionIds);
@@ -367,8 +373,12 @@ async function syncElastic(options: SeedOptions): Promise<void> {
 
   try {
     await indexingService.onModuleInit();
-    if (options.reset) {
+    if (options.reset || options.purge) {
       await resetElasticData(elastic);
+    }
+    if (options.purge) {
+      logger.log('Modo purge activado. No se reindexarán documentos seed en Elastic.');
+      return;
     }
     await Promise.all(
       clients.map((client) => indexingService.indexClient(new Client(client))),
@@ -394,17 +404,25 @@ async function syncElastic(options: SeedOptions): Promise<void> {
 
 async function run(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
+  if (options.reset && options.purge) {
+    throw new Error('No se pueden usar --reset y --purge al mismo tiempo.');
+  }
+
   const dataSource = new DataSource(createDatabaseOptions('development-cli'));
   try {
     await dataSource.initialize();
     logger.log('Conexión a PostgreSQL inicializada para seeds.');
-    if (options.reset) {
+    if (options.reset || options.purge) {
       await resetSeedData(dataSource);
     }
-    await seedDatabase(dataSource);
-    logger.log(
-      `Seeds aplicados: ${clients.length} clientes, ${accounts.length} cuentas, ${exchangeRates.length} tasas, ${transactions.length} transacciones.`,
-    );
+    if (options.purge) {
+      logger.log('Modo purge activado. No se insertarán registros seed en PostgreSQL.');
+    } else {
+      await seedDatabase(dataSource);
+      logger.log(
+        `Seeds aplicados: ${clients.length} clientes, ${accounts.length} cuentas, ${exchangeRates.length} tasas, ${transactions.length} transacciones.`,
+      );
+    }
   } finally {
     if (dataSource.isInitialized) {
       await dataSource.destroy();

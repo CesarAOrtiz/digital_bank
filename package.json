@@ -29,6 +29,8 @@
     "migration:revert:dev": "npm run typeorm -- migration:revert",
     "migration:show:dev": "npm run typeorm -- migration:show",
     "seed": "node -r ts-node/register -r tsconfig-paths/register src/seeds/run-seeds.ts",
+    "seed:reset": "node -r ts-node/register -r tsconfig-paths/register src/seeds/run-seeds.ts --reset",
+    "seed:purge": "node -r ts-node/register -r tsconfig-paths/register src/seeds/run-seeds.ts --purge",
     "seed:prod": "npm run build && node dist/seeds/run-seeds.js"
   },
   "dependencies": {
