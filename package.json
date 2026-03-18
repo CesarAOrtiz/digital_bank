@@ -27,7 +27,9 @@
     "migration:show": "npm run build && npm run typeorm:dist -- migration:show",
     "migration:run:dev": "npm run typeorm -- migration:run",
     "migration:revert:dev": "npm run typeorm -- migration:revert",
-    "migration:show:dev": "npm run typeorm -- migration:show"
+    "migration:show:dev": "npm run typeorm -- migration:show",
+    "seed": "node -r ts-node/register -r tsconfig-paths/register src/seeds/run-seeds.ts",
+    "seed:prod": "npm run build && node dist/seeds/run-seeds.js"
   },
   "dependencies": {
     "@apollo/server": "^5.4.0",

@@ -468,6 +468,21 @@ GraphQL queda disponible en:
 
 `http://localhost:3000/graphql`
 
+### 5. Cargar datos seed
+
+```bash
+npm run seed
+```
+
+El seed actual crea un dataset demo idempotente con:
+
+- clientes
+- cuentas en USD, EUR y DOP
+- tasas de cambio
+- depósitos, retiros y transferencias de ejemplo
+
+Si `ELASTICSEARCH_NODE` está configurado, el script también intenta sincronizar los índices de búsqueda en Elastic como parte del proceso.
+
 ## Migraciones
 
 Crear migración vacía:
@@ -499,6 +514,27 @@ Ver migraciones pendientes:
 ```bash
 npm run migration:show:dev
 ```
+
+## Seeds
+
+Ejecutar seeds en desarrollo:
+
+```bash
+npm run seed
+```
+
+Ejecutar seeds sobre el build compilado:
+
+```bash
+npm run seed:prod
+```
+
+Características del seed actual:
+
+- usa ids fijos para que sea idempotente al re-ejecutarse
+- deja cuentas y transacciones demo ya listas para probar GraphQL y búsquedas
+- incluye transferencias misma moneda y multi-moneda
+- intenta sincronizar Elastic sin hacer fallar todo el proceso si el buscador no está disponible
 
 ## Cómo Probar
 
@@ -655,11 +691,11 @@ Actualmente ya están implementados los componentes centrales del backend financ
 - idempotencia en operaciones financieras
 - caché selectiva con Redis
 - búsquedas respaldadas por Elasticsearch
+- seed inicial de datos demo
 - health checks
 
 Todavía estoy trabajando en algunos puntos del alcance original de la prueba:
 
-- seeds de datos
 - Docker y orquestación local
 - ampliación de la suite de tests, especialmente e2e y escenarios de concurrencia
 
