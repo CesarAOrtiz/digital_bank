@@ -1,28 +1,74 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { HealthCheckService } from '@nestjs/terminus';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import { AppController } from '../src/app.controller';
+import { AppService } from '../src/app.service';
 
 describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: INestApplication;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      controllers: [AppController],
+      providers: [
+        {
+          provide: HealthCheckService,
+          useValue: {
+            check: jest.fn().mockResolvedValue({
+              status: 'ok',
+              info: {
+                postgres: { status: 'up' },
+                redis: { status: 'up' },
+                elastic: { status: 'up' },
+              },
+              error: {},
+              details: {
+                postgres: { status: 'up' },
+                redis: { status: 'up' },
+                elastic: { status: 'up' },
+              },
+            }),
+          },
+        },
+        {
+          provide: AppService,
+          useValue: {
+            checkPostgres: jest.fn().mockResolvedValue({ postgres: { status: 'up' } }),
+            checkRedis: jest.fn().mockResolvedValue({ redis: { status: 'up' } }),
+            checkElastic: jest.fn().mockResolvedValue({ elastic: { status: 'up' } }),
+          },
+        },
+      ],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = moduleRef.createNestApplication();
     await app.init();
   });
 
-  it('/health (GET)', () => {
-    return request(app.getHttpServer())
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('GET /health debe devolver el estado agregado', async () => {
+    await request(app.getHttpServer())
       .get('/health')
       .expect(200)
-      .expect((response) => {
-        expect(response.body.service).toBe('digital_bank');
-        expect(response.body.status).toBe('ok');
+      .expect(({ body }) => {
+        expect(body).toEqual({
+          status: 'ok',
+          info: {
+            postgres: { status: 'up' },
+            redis: { status: 'up' },
+            elastic: { status: 'up' },
+          },
+          error: {},
+          details: {
+            postgres: { status: 'up' },
+            redis: { status: 'up' },
+            elastic: { status: 'up' },
+          },
+        });
       });
   });
 });
