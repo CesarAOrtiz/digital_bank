@@ -107,6 +107,8 @@ input SearchTransactionsInput {
   currency: Currency
   dateFrom: DateTime
   dateTo: DateTime
+  destinationAccountId: ID
+  sourceAccountId: ID
   text: String
   type: TransactionType
 }

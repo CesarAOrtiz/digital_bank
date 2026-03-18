@@ -13,6 +13,8 @@ import { CLIENT_REPOSITORY } from '../../../common/infrastructure/repository.tok
 import { Client } from '../domain';
 import type { ClientRepository } from '../domain';
 import type { CreateClientInput } from './inputs/create-client.input';
+import { SearchIndexingService } from '../../search/application/search-indexing.service';
+import { SearchQueryService } from '../../search/application/search-query.service';
 
 @Injectable()
 export class ClientsService {
@@ -20,6 +22,8 @@ export class ClientsService {
     @Inject(CLIENT_REPOSITORY)
     private readonly clientRepository: ClientRepository,
     private readonly redisCacheService: RedisCacheService,
+    private readonly searchIndexingService: SearchIndexingService,
+    private readonly searchQueryService: SearchQueryService,
   ) {}
 
   async create(data: CreateClientInput): Promise<Client> {
@@ -49,6 +53,7 @@ export class ClientsService {
     );
 
     await this.redisCacheService.del(RedisCacheKeys.client(client.id));
+    await this.searchIndexingService.indexClient(client);
     return client;
   }
 
@@ -57,7 +62,7 @@ export class ClientsService {
   }
 
   search(term: string): Promise<Client[]> {
-    return this.clientRepository.search(term.trim());
+    return this.searchQueryService.searchClients(term);
   }
 
   async findOne(id: string): Promise<Client> {

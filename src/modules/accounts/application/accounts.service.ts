@@ -17,6 +17,8 @@ import {
   CLIENT_REPOSITORY,
 } from '../../../common/infrastructure/repository.tokens';
 import type { ClientRepository } from '../../clients/domain';
+import { SearchIndexingService } from '../../search/application/search-indexing.service';
+import { SearchQueryService } from '../../search/application/search-query.service';
 import { Account } from '../domain';
 import type { AccountRepository } from '../domain';
 import type { CreateAccountInput } from './inputs/create-account.input';
@@ -29,6 +31,8 @@ export class AccountsService {
     @Inject(CLIENT_REPOSITORY)
     private readonly clientRepository: ClientRepository,
     private readonly redisCacheService: RedisCacheService,
+    private readonly searchIndexingService: SearchIndexingService,
+    private readonly searchQueryService: SearchQueryService,
   ) {}
 
   async create(data: CreateAccountInput): Promise<Account> {
@@ -65,6 +69,7 @@ export class AccountsService {
     );
 
     await this.invalidateClientAccountsCache(data.clientId);
+    await this.searchIndexingService.indexAccount(account);
     return account;
   }
 
@@ -89,7 +94,7 @@ export class AccountsService {
   }
 
   search(term: string): Promise<Account[]> {
-    return this.accountRepository.search(term.trim());
+    return this.searchQueryService.searchAccounts(term);
   }
 
   async findOne(id: string): Promise<Account> {
@@ -109,11 +114,11 @@ export class AccountsService {
 
   private async findByClientCached(clientId: string): Promise<Account[]> {
     const cacheKey = RedisCacheKeys.clientAccounts(clientId);
-    const cached = await this.redisCacheService.get<
-      Array<ReturnType<Account['toPrimitives']>>
-    >(cacheKey);
+    const cached =
+      await this.redisCacheService.get<
+        Array<ReturnType<Account['toPrimitives']>>
+      >(cacheKey);
     if (cached) {
-      // Cached balances are read-optimization only and must never drive financial logic.
       return cached.map(
         (account) =>
           new Account({
