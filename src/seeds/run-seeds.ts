@@ -15,6 +15,9 @@ import { Transaction } from '../modules/transactions/domain';
 import { TransactionOrmEntity } from '../modules/transactions/infrastructure';
 
 const logger = new Logger('SeedRunner');
+const CLIENTS_INDEX = 'clients';
+const ACCOUNTS_INDEX = 'accounts';
+const TRANSACTIONS_INDEX = 'transactions';
 
 interface SeedOptions {
   reset: boolean;
@@ -286,6 +289,43 @@ async function resetSeedData(dataSource: DataSource): Promise<void> {
   logger.log('Registros seed eliminados correctamente.');
 }
 
+async function deleteElasticDocuments(
+  elastic: ElasticClient,
+  index: string,
+  ids: string[],
+): Promise<void> {
+  for (const id of ids) {
+    try {
+      await elastic.delete({ index, id });
+    } catch (error) {
+      const statusCode =
+        typeof error === 'object' &&
+        error &&
+        'meta' in error &&
+        typeof (error as { meta?: { statusCode?: number } }).meta?.statusCode ===
+          'number'
+          ? (error as { meta?: { statusCode?: number } }).meta?.statusCode
+          : undefined;
+
+      if (statusCode === 404) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+}
+
+async function resetElasticData(elastic: ElasticClient): Promise<void> {
+  logger.log('Modo reset activado. Eliminando documentos seed conocidos en Elastic.');
+
+  await deleteElasticDocuments(elastic, TRANSACTIONS_INDEX, transactionIds);
+  await deleteElasticDocuments(elastic, ACCOUNTS_INDEX, accountIds);
+  await deleteElasticDocuments(elastic, CLIENTS_INDEX, clientIds);
+
+  logger.log('Documentos seed eliminados correctamente de Elastic.');
+}
+
 async function seedDatabase(dataSource: DataSource): Promise<void> {
   await dataSource.getRepository(ClientOrmEntity).save(clients);
   await dataSource.getRepository(AccountOrmEntity).save(accounts);
@@ -293,7 +333,7 @@ async function seedDatabase(dataSource: DataSource): Promise<void> {
   await dataSource.getRepository(TransactionOrmEntity).save(transactions);
 }
 
-async function syncElastic(): Promise<void> {
+async function syncElastic(options: SeedOptions): Promise<void> {
   const node = getOptionalEnv('ELASTICSEARCH_NODE');
   if (!node) {
     logger.log('ELASTICSEARCH_NODE no está configurado. Se omite sincronización con Elastic.');
@@ -317,6 +357,9 @@ async function syncElastic(): Promise<void> {
 
   try {
     await indexingService.onModuleInit();
+    if (options.reset) {
+      await resetElasticData(elastic);
+    }
     await Promise.all(clients.map((client) => indexingService.indexClient(new Client(client))));
     await Promise.all(accounts.map((account) => indexingService.indexAccount(new Account(account))));
     await Promise.all(
@@ -353,7 +396,7 @@ async function run(): Promise<void> {
     }
   }
 
-  await syncElastic();
+  await syncElastic(options);
 }
 
 run().catch((error: unknown) => {
