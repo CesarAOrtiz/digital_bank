@@ -490,6 +490,12 @@ Además, el contenedor de la app ejecuta automáticamente:
 - seeds
 - arranque del servidor
 
+Scripts usados dentro del contenedor:
+
+- `npm run migration:run:prod`
+- `npm run seed:prod`
+- `npm run start:prod`
+
 Rutas útiles:
 
 - GraphQL: `http://localhost:3000/graphql`
@@ -554,6 +560,13 @@ Ejecutar seeds sobre el build compilado:
 
 ```bash
 npm run seed:prod
+```
+
+Opciones útiles sobre el build compilado:
+
+```bash
+npm run seed:reset:prod
+npm run seed:purge:prod
 ```
 
 Características del seed actual:

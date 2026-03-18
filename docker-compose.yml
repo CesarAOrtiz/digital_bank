@@ -35,12 +35,7 @@ services:
       ELASTICSEARCH_USERNAME: ""
       ELASTICSEARCH_PASSWORD: ""
       ELASTICSEARCH_API_KEY: ""
-    command: >
-      sh -c "
-      node ./node_modules/typeorm/cli.js -d dist/config/typeorm-cli-prod.config.js migration:run &&
-      node dist/seeds/run-seeds.js &&
-      node dist/main.js
-      "
+    command: ["npm", "run", "start:docker"]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
       interval: 20s
