@@ -1,6 +1,7 @@
 import { AccountStatus, Currency, TransactionType } from '../../../../common/domain/enums';
 import {
   DomainRuleViolationException,
+  ExchangeRateNotConfiguredException,
   IdempotencyKeyReuseException,
   InsufficientFundsException,
 } from '../../../../common/domain/exceptions';
@@ -431,6 +432,71 @@ describe('TransactionWriteService', () => {
     expect(result.toPrimitives().exchangeRateUsed).toBe('60.500000');
     expect(searchIndexingService.indexAccount).toHaveBeenCalledTimes(2);
     expect(searchIndexingService.indexTransaction).toHaveBeenCalledWith(result);
+  });
+
+  it('transfer debe fallar con un error explícito cuando no existe tasa de cambio', async () => {
+    const {
+      service,
+      context,
+      exchangeRatesService,
+      redisCacheService,
+      searchIndexingService,
+      appLogger,
+    } = createSut();
+    const source = buildAccount({
+      id: 'source-usd',
+      clientId: 'client-a',
+      currency: Currency.USD,
+      balance: '100.00',
+    });
+    const destination = buildAccount({
+      id: 'dest-eur',
+      clientId: 'client-b',
+      accountNumber: 'ACC-EUR',
+      currency: Currency.EUR,
+      balance: '80.00',
+    });
+    context.accountRepository.findById.mockImplementation(async (id: string) => {
+      if (id === source.id) {
+        return source;
+      }
+      if (id === destination.id) {
+        return destination;
+      }
+      return null;
+    });
+    exchangeRatesService.findCurrent.mockRejectedValue(
+      new ExchangeRateNotConfiguredException(
+        Currency.USD,
+        Currency.EUR,
+      ),
+    );
+
+    await expect(
+      service.transfer({
+        sourceAccountId: source.id,
+        destinationAccountId: destination.id,
+        amount: '10',
+        description: 'fx transfer missing rate',
+        idempotencyKey: 'tr-4',
+      }),
+    ).rejects.toBeInstanceOf(ExchangeRateNotConfiguredException);
+
+    expect(appLogger.warn).toHaveBeenCalledWith(
+      'transaction.transfer.failed',
+      expect.objectContaining({
+        transactionType: TransactionType.TRANSFER,
+        sourceAccountId: source.id,
+        destinationAccountId: destination.id,
+        attemptedAmount: '10.00',
+        errorCode: 'EXCHANGE_RATE_NOT_CONFIGURED',
+      }),
+    );
+    expect(context.accountRepository.save).not.toHaveBeenCalled();
+    expect(context.transactionRepository.save).not.toHaveBeenCalled();
+    expect(redisCacheService.delMany).not.toHaveBeenCalled();
+    expect(searchIndexingService.indexAccount).not.toHaveBeenCalled();
+    expect(searchIndexingService.indexTransaction).not.toHaveBeenCalled();
   });
 
   it('deposit debe fallar cuando se reutiliza la idempotency key con un payload distinto', async () => {

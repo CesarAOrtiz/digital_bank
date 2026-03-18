@@ -28,6 +28,17 @@ El API principal es GraphQL. El esquema generado se escribe automáticamente en 
 - `decimal.js` para cálculos monetarios
 - `@nestjs/terminus` para health checks
 
+## Decisiones de Diseño
+
+- PostgreSQL es la fuente de verdad para balances, transacciones, idempotencia y concurrencia.
+- Redis se usa solo como cache de lecturas frecuentes; no participa en consistencia financiera.
+- Elasticsearch resuelve búsquedas avanzadas sobre clientes, cuentas y transacciones sin desplazar a PostgreSQL.
+- Las operaciones financieras usan transacciones de base de datos, locking pesimista y orden estable de bloqueo para reducir carreras y deadlocks.
+- La idempotencia se apoya en persistencia real y validación de payload, no en memoria o cache.
+- Los montos y tasas se calculan con `decimal.js` y redondeo bancario explícito `ROUND_HALF_EVEN`.
+- Docker desacopla arranque de aplicación, migraciones y seeds para evitar efectos secundarios operativos.
+- La observabilidad se apoya en logs estructurados JSON con `requestId`, contexto de negocio y eventos consistentes.
+
 ## Arquitectura
 
 La solución sigue una arquitectura modular DDD-light con separación explícita por capas:
@@ -516,7 +527,7 @@ GraphQL queda disponible en:
 
 `http://localhost:3000/graphql`
 
-## Ejecutar Con Docker
+## Ejecutar con Docker
 
 Levantar todo el stack:
 
@@ -599,7 +610,7 @@ O si quieres resetearlos:
 docker compose run --rm app npm run seed:reset:prod
 ```
 
-### Nota De Diseño
+### Nota de diseño
 
 Esta decisión desacopla:
 
@@ -608,21 +619,6 @@ Esta decisión desacopla:
 - la carga de datos demo
 
 Esto evita efectos secundarios no deseados en reinicios del servicio y da más control operativo.
-
-### 5. Cargar datos seed
-
-```bash
-npm run seed
-```
-
-El seed actual crea un dataset demo idempotente con:
-
-- clientes
-- cuentas en USD, EUR y DOP
-- tasas de cambio
-- depósitos, retiros y transferencias de ejemplo
-
-Si `ELASTICSEARCH_NODE` está configurado, el script también intenta sincronizar los índices de búsqueda en Elastic como parte del proceso.
 
 ## Migraciones
 
@@ -856,10 +852,10 @@ Actualmente ya están implementados los componentes centrales del backend financ
 - seed inicial de datos demo
 - health checks
 
-Todavía estoy trabajando en algunos puntos del alcance original de la prueba:
+Todavía estoy ampliando algunos puntos del alcance original de la prueba:
 
-- Docker y orquestación local
-- ampliación de la suite de tests, especialmente e2e y escenarios de concurrencia
+- ampliación de la suite de tests, especialmente escenarios e2e adicionales y concurrencia
+- endurecimiento operativo de la experiencia Docker en entornos distintos
 
 Hay además decisiones que sí quedaron fuera del alcance actual de esta iteración:
 
@@ -867,14 +863,3 @@ Hay además decisiones que sí quedaron fuera del alcance actual de esta iteraci
 - saga/outbox para reintentos de indexación
 - reindexación masiva de datos históricos
 - observabilidad completa con métricas y tracing
-
-## Resumen Ejecutivo
-
-Lo más importante son estas decisiones:
-
-- balances y fondos salen solo de PostgreSQL
-- transferencias usan locking pesimista y orden estable de bloqueo
-- la idempotencia está diseñada para tolerar reintentos y carreras
-- Redis acelera lecturas pero no participa en consistencia
-- Elasticsearch resuelve búsqueda sin convertirse en fuente de verdad
-- las transferencias multi-moneda preservan trazabilidad con monto origen, monto destino y tasa usada
