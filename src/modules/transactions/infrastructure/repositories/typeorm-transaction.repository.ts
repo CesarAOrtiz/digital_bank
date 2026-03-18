@@ -50,7 +50,9 @@ export class TypeOrmTransactionRepository implements TransactionRepository {
     type: TransactionType,
   ): Promise<Transaction | null> {
     const repository = await this.getRepository();
-    const entity = await repository.findOne({ where: { idempotencyKey, type } });
+    const entity = await repository.findOne({
+      where: { idempotencyKey, type },
+    });
     return entity ? TransactionOrmMapper.toDomain(entity) : null;
   }
 
@@ -61,16 +63,23 @@ export class TypeOrmTransactionRepository implements TransactionRepository {
     if (filters.type) {
       query.andWhere('transaction.type = :type', { type: filters.type });
     }
-    if (filters.accountId) {
-      query.andWhere(
-        '(transaction.sourceAccountId = :accountId OR transaction.destinationAccountId = :accountId)',
-        { accountId: filters.accountId },
-      );
-    }
     if (filters.currency) {
       query.andWhere(
         '(transaction.sourceCurrency = :currency OR transaction.destinationCurrency = :currency)',
         { currency: filters.currency satisfies Currency },
+      );
+    }
+    if (filters.sourceAccountId) {
+      query.andWhere('transaction.sourceAccountId = :sourceAccountId', {
+        sourceAccountId: filters.sourceAccountId,
+      });
+    }
+    if (filters.destinationAccountId) {
+      query.andWhere(
+        'transaction.destinationAccountId = :destinationAccountId',
+        {
+          destinationAccountId: filters.destinationAccountId,
+        },
       );
     }
     if (filters.dateFrom) {

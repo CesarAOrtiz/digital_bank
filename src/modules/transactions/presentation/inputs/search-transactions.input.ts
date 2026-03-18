@@ -19,6 +19,16 @@ export class SearchTransactionsInput {
   @IsUUID()
   accountId?: string;
 
+  @Field(() => ID, { nullable: true })
+  @IsOptional()
+  @IsUUID()
+  sourceAccountId?: string;
+
+  @Field(() => ID, { nullable: true })
+  @IsOptional()
+  @IsUUID()
+  destinationAccountId?: string;
+
   @Field(() => Currency, { nullable: true })
   @IsOptional()
   @IsEnum(Currency)

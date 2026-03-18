@@ -18,6 +18,7 @@ import { RedisCacheService } from '../../../../common/infrastructure/redis/redis
 import { Account } from '../../../accounts/domain';
 import type { AccountRepository } from '../../../accounts/domain';
 import { ExchangeRatesService } from '../../../exchange-rates/application/exchange-rates.service';
+import { SearchIndexingService } from '../../../search/application/search-indexing.service';
 import { Transaction } from '../../domain';
 import { TransactionIdempotencyService } from './transaction-idempotency.service';
 import type { DepositTransactionInput } from '../inputs/deposit-transaction.input';
@@ -32,11 +33,13 @@ export class TransactionWriteService {
     private readonly transactionIdempotencyService: TransactionIdempotencyService,
     private readonly redisCacheService: RedisCacheService,
     private readonly exchangeRatesService: ExchangeRatesService,
+    private readonly searchIndexingService: SearchIndexingService,
   ) {}
 
   async deposit(data: DepositTransactionInput): Promise<Transaction> {
     this.logger.log(`Deposit requested for account ${data.accountId}`);
     let affectedClientIds: string[] = [];
+    let affectedAccounts: Account[] = [];
     let didMutate = false;
 
     const transaction =
@@ -69,6 +72,7 @@ export class TransactionWriteService {
         const updatedAccount = account.deposit(data.amount);
         await accountRepository.save(updatedAccount);
         affectedClientIds = [updatedAccount.toPrimitives().clientId];
+        affectedAccounts = [updatedAccount];
 
         const savedTransaction = await transactionRepository.save(
           this.buildDepositTransaction(updatedAccount, data),
@@ -82,6 +86,12 @@ export class TransactionWriteService {
 
     if (didMutate) {
       await this.invalidateClientAccountsCaches(affectedClientIds);
+      await Promise.all([
+        ...affectedAccounts.map((account) =>
+          this.searchIndexingService.indexAccount(account),
+        ),
+        this.searchIndexingService.indexTransaction(transaction),
+      ]);
     }
 
     return transaction;
@@ -90,6 +100,7 @@ export class TransactionWriteService {
   async withdraw(data: WithdrawTransactionInput): Promise<Transaction> {
     this.logger.log(`Withdrawal requested for account ${data.accountId}`);
     let affectedClientIds: string[] = [];
+    let affectedAccounts: Account[] = [];
     let didMutate = false;
 
     const transaction =
@@ -122,6 +133,7 @@ export class TransactionWriteService {
         const updatedAccount = account.withdraw(data.amount);
         await accountRepository.save(updatedAccount);
         affectedClientIds = [updatedAccount.toPrimitives().clientId];
+        affectedAccounts = [updatedAccount];
 
         const savedTransaction = await transactionRepository.save(
           this.buildWithdrawalTransaction(updatedAccount, data),
@@ -138,6 +150,12 @@ export class TransactionWriteService {
 
     if (didMutate) {
       await this.invalidateClientAccountsCaches(affectedClientIds);
+      await Promise.all([
+        ...affectedAccounts.map((account) =>
+          this.searchIndexingService.indexAccount(account),
+        ),
+        this.searchIndexingService.indexTransaction(transaction),
+      ]);
     }
 
     return transaction;
@@ -154,6 +172,7 @@ export class TransactionWriteService {
       `Transfer requested from ${data.sourceAccountId} to ${data.destinationAccountId}`,
     );
     let affectedClientIds: string[] = [];
+    let affectedAccounts: Account[] = [];
     let didMutate = false;
 
     const transaction =
@@ -207,6 +226,7 @@ export class TransactionWriteService {
           sourceAccount.toPrimitives().clientId,
           destinationAccount.toPrimitives().clientId,
         ];
+        affectedAccounts = [debitedSource, creditedDestination];
 
         const savedTransaction = await transactionRepository.save(
           this.buildTransferTransaction({
@@ -228,6 +248,12 @@ export class TransactionWriteService {
 
     if (didMutate) {
       await this.invalidateClientAccountsCaches(affectedClientIds);
+      await Promise.all([
+        ...affectedAccounts.map((account) =>
+          this.searchIndexingService.indexAccount(account),
+        ),
+        this.searchIndexingService.indexTransaction(transaction),
+      ]);
     }
 
     return transaction;

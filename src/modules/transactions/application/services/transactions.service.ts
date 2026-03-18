@@ -4,6 +4,7 @@ import type { TransactionSearchFilters } from '../../domain';
 import type { DepositTransactionInput } from '../inputs/deposit-transaction.input';
 import type { TransferTransactionInput } from '../inputs/transfer-transaction.input';
 import type { WithdrawTransactionInput } from '../inputs/withdraw-transaction.input';
+import { SearchQueryService } from '../../../search/application/search-query.service';
 import { TransactionReadService } from './transaction-read.service';
 import { TransactionWriteService } from './transaction-write.service';
 
@@ -12,6 +13,7 @@ export class TransactionsService {
   constructor(
     private readonly transactionWriteService: TransactionWriteService,
     private readonly transactionReadService: TransactionReadService,
+    private readonly searchQueryService: SearchQueryService,
   ) {}
 
   deposit(data: DepositTransactionInput): Promise<Transaction> {
@@ -31,7 +33,7 @@ export class TransactionsService {
   }
 
   search(filters: TransactionSearchFilters): Promise<Transaction[]> {
-    return this.transactionReadService.search(filters);
+    return this.searchQueryService.searchTransactions(filters);
   }
 
   findOne(id: string): Promise<Transaction> {
