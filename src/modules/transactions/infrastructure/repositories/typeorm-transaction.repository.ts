@@ -63,6 +63,12 @@ export class TypeOrmTransactionRepository implements TransactionRepository {
     if (filters.type) {
       query.andWhere('transaction.type = :type', { type: filters.type });
     }
+    if (filters.accountId) {
+      query.andWhere(
+        '(transaction.sourceAccountId = :accountId OR transaction.destinationAccountId = :accountId)',
+        { accountId: filters.accountId },
+      );
+    }
     if (filters.currency) {
       query.andWhere(
         '(transaction.sourceCurrency = :currency OR transaction.destinationCurrency = :currency)',

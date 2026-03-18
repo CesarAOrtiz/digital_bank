@@ -8,7 +8,10 @@ import {
 import { ELASTIC_CLIENT } from '../../../common/infrastructure/elasticsearch/elasticsearch.tokens';
 import { Account } from '../../accounts/domain';
 import { Client } from '../../clients/domain';
-import { Transaction, TransactionSearchFilters } from '../../transactions/domain';
+import {
+  Transaction,
+  TransactionSearchFilters,
+} from '../../transactions/domain';
 
 const CLIENTS_INDEX = 'clients';
 const ACCOUNTS_INDEX = 'accounts';
@@ -77,7 +80,7 @@ export class SearchQueryService {
             },
             {
               wildcard: {
-                'documentNumber': {
+                documentNumber: {
                   value: `*${normalizedTerm.toLowerCase()}*`,
                   case_insensitive: true,
                 },
@@ -252,7 +255,9 @@ export class SearchQueryService {
       filter.push({
         range: {
           createdAt: {
-            ...(filters.dateFrom ? { gte: filters.dateFrom.toISOString() } : {}),
+            ...(filters.dateFrom
+              ? { gte: filters.dateFrom.toISOString() }
+              : {}),
             ...(filters.dateTo ? { lte: filters.dateTo.toISOString() } : {}),
           },
         },

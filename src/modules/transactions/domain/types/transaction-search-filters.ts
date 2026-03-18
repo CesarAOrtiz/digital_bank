@@ -6,6 +6,7 @@ import type {
 export interface TransactionSearchFilters {
   text?: string;
   type?: TransactionType;
+  accountId?: string;
   sourceAccountId?: string;
   destinationAccountId?: string;
   currency?: Currency;

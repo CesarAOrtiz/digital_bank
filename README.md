@@ -1,89 +1,80 @@
 # Digital Bank
 
-Microservicio backend bancario construido con NestJS, GraphQL y PostgreSQL, diseñado para manejar clientes, cuentas y transacciones financieras multi-moneda.
+Backend bancario construido con NestJS, GraphQL y PostgreSQL para manejar clientes, cuentas, tasas de cambio y transacciones financieras con foco en consistencia, concurrencia e idempotencia.
 
-El proyecto prioriza:
+El proyecto está diseñado como una prueba técnica senior: prioriza decisiones defendibles de arquitectura antes que volumen de features. PostgreSQL es la fuente de verdad operativa; Redis se usa como optimización de lectura; Elasticsearch se usa como índice de búsqueda.
 
-- consistencia transaccional
-- control de concurrencia
-- precisión en cálculos financieros
-- arquitectura modular clara
-
-## Resumen
-
-El sistema implementa:
+## Qué Resuelve
 
 - gestión de clientes
 - gestión de cuentas bancarias
 - depósitos
 - retiros
 - transferencias
-- transferencias multi-moneda
-- tasas de cambio versionadas
-- health checks del sistema
+- transferencias multi-moneda con tasa vigente
+- búsqueda en Elasticsearch
+- health checks de PostgreSQL, Redis y Elasticsearch
 
-El API principal es GraphQL.
+El API principal es GraphQL. El esquema generado se escribe automáticamente en `src/schema.gql`.
 
-El esquema generado se escribe automáticamente en:
-
-`src/schema.gql`
-
-## Stack Tecnológico
+## Stack
 
 - NestJS
-- GraphQL (Apollo)
+- GraphQL con Apollo
 - TypeORM
 - PostgreSQL
+- Redis
+- Elasticsearch
 - `decimal.js` para cálculos monetarios
 - `@nestjs/terminus` para health checks
 
-Dependencias disponibles:
-
-- Redis
-- Elasticsearch
-
 ## Arquitectura
 
-El proyecto utiliza una arquitectura DDD-light modular, donde cada módulo se divide en capas claras:
+La solución sigue una arquitectura modular DDD-light con separación explícita por capas:
+
+```text
+src/
+  common/        # infraestructura y utilidades compartidas
+  config/        # configuración de base de datos
+  migrations/    # migraciones TypeORM
+  modules/
+    clients/
+    accounts/
+    transactions/
+    exchange-rates/
+    search/
+```
+
+Cada módulo se organiza así:
 
 ```text
 src/modules/<module>/
-  domain/
-  application/
-  infrastructure/
-  presentation/
+  domain/         # entidades, tipos y contratos
+  application/    # casos de uso y coordinación
+  infrastructure/ # repositorios, ORM, adaptadores externos
+  presentation/   # resolvers GraphQL e inputs/models
 ```
 
-Responsabilidades de cada capa:
+### Responsabilidad por capa
 
-| Capa             | Responsabilidad                            |
-| ---------------- | ------------------------------------------ |
-| `domain`         | reglas de negocio, entidades y excepciones |
-| `application`    | coordinación de casos de uso               |
-| `infrastructure` | persistencia, ORM, repositorios            |
-| `presentation`   | resolvers GraphQL                          |
+| Capa             | Responsabilidad                                                    |
+| ---------------- | ------------------------------------------------------------------ |
+| `domain`         | invariantes del negocio, entidades y contratos                     |
+| `application`    | coordinación de flujos, orquestación y validaciones de caso de uso |
+| `infrastructure` | persistencia, locking, Redis, Elasticsearch                        |
+| `presentation`   | contrato GraphQL                                                   |
 
-## Módulos
+### Módulos principales
 
-Los módulos principales del sistema son:
-
-- `clients`
-- `accounts`
-- `transactions`
-- `exchange-rates`
-
-Componentes compartidos:
-
-- `src/common`
-- `src/config`
+- `clients`: alta y consulta de clientes
+- `accounts`: alta y consulta de cuentas
+- `transactions`: depósitos, retiros, transferencias e idempotencia
+- `exchange-rates`: versionado y consulta de tasas vigentes
+- `search`: creación de índices, mappings e implementación de búsquedas en Elastic
 
 ## Modelo de Dominio
 
 ### Client
-
-Representa un cliente del banco.
-
-Campos principales:
 
 - `id`
 - `firstName`
@@ -93,27 +84,23 @@ Campos principales:
 - `createdAt`
 - `updatedAt`
 
-Restricciones:
+Reglas:
 
 - `email` único
 - `documentNumber` único
 
 ### Account
 
-Cuenta bancaria asociada a un cliente.
-
-Campos principales:
-
 - `id`
-- `clientId`
 - `accountNumber`
+- `clientId`
 - `currency`
 - `balance`
 - `status`
 - `createdAt`
 - `updatedAt`
 
-Estados posibles:
+Estados:
 
 - `ACTIVE`
 - `BLOCKED`
@@ -121,15 +108,12 @@ Estados posibles:
 
 Reglas:
 
-- una cuenta pertenece a un cliente
-- cada cuenta tiene una moneda fija
+- la cuenta pertenece a un cliente existente
+- `accountNumber` es único
 - no se puede operar sobre cuentas bloqueadas o inactivas
+- los balances se modifican únicamente dentro de operaciones financieras
 
 ### Transaction
-
-Representa una operación financiera.
-
-Campos principales:
 
 - `id`
 - `type`
@@ -152,10 +136,6 @@ Tipos:
 
 ### Exchange Rate
 
-Representa una tasa de cambio efectiva en un momento determinado.
-
-Campos principales:
-
 - `id`
 - `baseCurrency`
 - `targetCurrency`
@@ -163,135 +143,90 @@ Campos principales:
 - `effectiveAt`
 - `createdAt`
 
-## Decisiones de Diseño
+## Decisiones Técnicas Clave
 
-### Transacciones ACID
+### PostgreSQL Como Fuente de Verdad
 
-Todas las operaciones financieras se ejecutan dentro de transacciones de base de datos.
+Toda decisión financiera sale de PostgreSQL, no de Redis ni de Elasticsearch.
 
-Para transferencias:
+Eso incluye:
 
-- se inicia una transacción
-- se bloquean ambas cuentas con `pessimistic_write`
-- el orden de bloqueo se normaliza por `id`
-- se valida saldo
-- se aplica débito/crédito
-- se persiste la transacción
-- se realiza `commit`
+- validación de saldo
+- balance final de cuenta
+- persistencia de transacciones
+- idempotencia efectiva
+- control de concurrencia
 
-Esto evita inconsistencias y reduce el riesgo de deadlocks.
+Redis y Elasticsearch son auxiliares. Si quedan desfasados temporalmente, no comprometen la integridad financiera.
 
-### Estrategia de Concurrencia
+### Concurrencia y Control de Deadlocks
 
-Las cuentas involucradas en transferencias se bloquean usando:
+Las operaciones financieras corren dentro de transacciones de base de datos. Para evitar carreras y reducir deadlocks:
 
-`pessimistic_write`
+- las cuentas involucradas se bloquean con `pessimistic_write`
+- los ids de cuenta se normalizan y bloquean en orden estable
+- las validaciones de saldo ocurren con los registros ya bloqueados
 
-El orden de bloqueo se normaliza:
-
-```text
-if accountA.id < accountB.id
-  lock A
-  lock B
-else
-  lock B
-  lock A
-```
-
-Esto reduce significativamente la probabilidad de deadlocks.
-
-### Precisión Monetaria
-
-Los cálculos financieros usan `decimal.js`.
-
-Escalas utilizadas:
-
-- `amount`: `decimal(18,2)`
-- `exchange rate`: `decimal(18,6)`
-
-El redondeo usa:
-
-`ROUND_HALF_EVEN`
-
-también conocido como banker's rounding.
+El locking se aplica desde el transaction manager de infraestructura, no desde GraphQL ni desde el resolver.
 
 ### Idempotencia
 
-Las operaciones financieras aceptan el campo:
+`deposit`, `withdraw` y `transfer` aceptan `idempotencyKey`.
 
-`idempotencyKey`
+La estrategia implementada es:
 
-La implementación:
+- buscar una transacción previa de igual `type` e `idempotencyKey`
+- si existe, validar que el payload sea compatible
+- si coincide, devolver la transacción existente
+- si no coincide, rechazar con error de reutilización indebida
+- si dos requests compiten, la unicidad en base de datos resuelve la carrera
 
-- detecta reutilización con payload distinto
-- evita ejecuciones duplicadas
-- maneja condiciones de carrera en claves duplicadas
+Además, la unicidad se maneja por combinación `type + idempotencyKey`, no por `idempotencyKey` global, lo que permite semántica más precisa por tipo de operación.
 
-Si la misma clave se reutiliza para otra operación incompatible, el sistema lanza:
+### Precisión Monetaria
 
-`IDEMPOTENCY_KEY_REUSE`
+Los montos y tasas usan `decimal.js`.
 
-### Inmutabilidad de Transacciones
+Escalas relevantes:
 
-Las transacciones financieras se modelan como registros inmutables.
+- montos: `numeric(18,2)`
+- tasas: `numeric(18,6)`
 
-Reglas:
+El redondeo usa `ROUND_HALF_EVEN`, apropiado para contexto financiero.
 
-- se crean una sola vez
+### Transacciones Inmutables
+
+Las transacciones financieras son append-only:
+
+- se crean una vez
 - no se editan
-- no se borran
+- no se eliminan
 
-Cualquier corrección futura debe representarse como una transacción compensatoria.
+Esto mantiene trazabilidad y evita mutaciones históricas sobre el ledger transaccional.
 
-Esto preserva la integridad histórica del sistema.
+## Flujo de Transferencias Multi-Moneda
 
-### Versionado de Tasas de Cambio
+Una transferencia entre monedas distintas sigue este flujo:
 
-Las tasas de cambio se tratan como registros históricos versionados.
+1. se abre una transacción de base de datos
+2. se bloquean ambas cuentas con `pessimistic_write`
+3. se valida que la cuenta origen pueda enviar y tenga fondos suficientes
+4. se consulta la tasa vigente para `sourceCurrency -> destinationCurrency`
+5. se debita el monto original de la cuenta origen
+6. se calcula el monto destino usando la tasa vigente
+7. se acredita el monto convertido en la cuenta destino
+8. se persiste una transacción con:
+   - `sourceAmount`
+   - `destinationAmount`
+   - `exchangeRateUsed`
+9. se hace commit
+10. se invalidan cachés y se actualiza el índice de búsqueda
 
-Reglas:
+Si las monedas coinciden, no se usa tasa de cambio y `exchangeRateUsed` queda `null`.
 
-- una tasa representa un valor efectivo en un momento
-- cuando cambia la tasa se inserta una nueva fila
-- las tasas existentes no se sobrescriben
+## Redis
 
-Las consultas utilizan la última tasa vigente según `effectiveAt`.
-
-### Semántica de `exchangeRate`
-
-La query:
-
-```graphql
-exchangeRate(baseCurrency, targetCurrency): ExchangeRate!
-```
-
-es non-null intencionalmente.
-
-Si no existe tasa vigente, el sistema lanza:
-
-`ExchangeRateNotConfiguredException`
-
-La ausencia de tasa se trata como error de configuración, no como resultado normal del negocio.
-
-### Manejo de Errores
-
-Las excepciones del dominio se exponen en GraphQL con códigos claros:
-
-- `INSUFFICIENT_FUNDS`
-- `ACCOUNT_BLOCKED`
-- `ACCOUNT_INACTIVE`
-- `EXCHANGE_RATE_NOT_CONFIGURED`
-- `IDEMPOTENCY_KEY_REUSE`
-
-Estos códigos se entregan en:
-
-`extensions.code`
-
-permitiendo manejo de errores progamados.
-
-### Redis y Caché Selectiva
-
-Redis se usa con `cache-aside pattern` y solo como optimización de lecturas frecuentes y relativamente estables.
+Redis se usa con patrón `cache-aside` y solo para lecturas frecuentes.
 
 Casos cacheados:
 
@@ -299,55 +234,124 @@ Casos cacheados:
 - cuentas por `clientId`
 - tasa de cambio vigente por par de monedas
 
-Claves usadas:
+Claves:
 
 - `client:{id}`
 - `client-accounts:{clientId}`
 - `fx:{baseCurrency}:{targetCurrency}`
 
-TTL:
+TTL configurados:
 
-- clientes: `600` segundos
-- cuentas por cliente: `600` segundos
-- tasas de cambio vigentes: `300` segundos
+- clientes: `600s`
+- cuentas por cliente: `600s`
+- tasas vigentes: `300s`
 
-Flujo aplicado:
+### Por Qué Redis No Decide Balances
 
-- lectura:
-  - se consulta Redis
-  - si no existe, se consulta PostgreSQL
-  - el resultado se guarda en Redis
-  - se devuelve la respuesta
-- escritura:
-  - primero se persiste en PostgreSQL
-  - luego se invalidan explícitamente las claves relacionadas en Redis
+Redis no participa en:
 
-Invalidaciones implementadas:
+- cálculo de saldo disponible
+- validación de fondos
+- atomicidad
+- idempotencia
 
-- al crear un cliente, se invalida `client:{id}`
-- al crear una cuenta, se invalida `client-accounts:{clientId}`
-- al crear una tasa de cambio, se invalida `fx:{baseCurrency}:{targetCurrency}`
-- en `deposit` y `withdraw`, se invalida `client-accounts:{clientId}` de la cuenta afectada
-- en `transfer`, se invalidan las claves `client-accounts` de los clientes involucrados sin duplicar trabajo si ambos coinciden
+En el sistema financiero una cache no debe convertirse en motor de consistencia.
 
-### Por Qué Redis No Se Usa Para Balances Operativos
+### Estrategia de Invalidación
 
-Redis no se usa para decidir fondos disponibles, saldos reales ni consistencia financiera.
+Después de escribir en PostgreSQL:
 
-Motivos:
+- `createClient` invalida `client:{id}`
+- `createAccount` invalida `client-accounts:{clientId}`
+- `createExchangeRate` invalida `fx:{base}:{target}`
+- `deposit` y `withdraw` invalidan `client-accounts:{clientId}`
+- `transfer` invalida las cuentas de los clientes afectados sin repetir claves
 
-- en un sistema financiero, la consistencia del balance es crítica
-- PostgreSQL sigue siendo la fuente de verdad
-- usar Redis para validar fondos introduciría riesgo de inconsistencia
+## Elasticsearch
 
-En `deposit`, `withdraw` y `transfer`:
+El módulo `search` implementa la integración real con Elastic.
 
-- la cuenta real y su balance se leen siempre desde PostgreSQL
-- la operación corre dentro de una transacción
-- se mantiene el locking pesimista existente
-- Redis no participa en atomicidad, idempotencia ni validación de fondos
+### Índices
 
-Si una respuesta cacheada de `accountsByClient` incluye balance, ese balance es solo de lectura y nunca se reutiliza para cálculos financieros.
+- `transactions`
+- `clients`
+- `accounts`
+
+### Mappings
+
+Se definen mappings explícitos para evitar depender de inferencia dinámica:
+
+- `keyword` para ids, `accountNumber`, `currency`, `type`, `status`, `idempotencyKey`
+- `text + keyword` para nombres, email y descripción
+- `date` para timestamps
+- `scaled_float` para montos y balances
+
+### Qué Se Indexa
+
+`clients`
+
+- `id`
+- `firstName`
+- `lastName`
+- `fullName`
+- `email`
+- `documentNumber`
+- `createdAt`
+- `updatedAt`
+
+`accounts`
+
+- `id`
+- `accountNumber`
+- `clientId`
+- `currency`
+- `status`
+- `balance`
+- `createdAt`
+- `updatedAt`
+
+`transactions`
+
+- `id`
+- `type`
+- `sourceAccountId`
+- `destinationAccountId`
+- `sourceCurrency`
+- `destinationCurrency`
+- `sourceAmount`
+- `destinationAmount`
+- `exchangeRateUsed`
+- `description`
+- `idempotencyKey`
+- `createdAt`
+
+### Cuándo Se Indexa
+
+La indexación se hace después de persistir en PostgreSQL:
+
+- `createClient` indexa cliente
+- `createAccount` indexa cuenta
+- `deposit` indexa transacción y reindexa cuenta
+- `withdraw` indexa transacción y reindexa cuenta
+- `transfer` indexa transacción y reindexa ambas cuentas
+
+Las búsquedas GraphQL respaldadas por Elastic son:
+
+- `searchClients(term)`
+- `searchAccounts(term)`
+- `searchTransactions(filters)`
+
+### Tradeoff Operativo
+
+La indexación está implementada como `best effort`: si Elastic falla, el sistema registra el error pero no invalida una operación financiera ya comprometida en PostgreSQL.
+
+Ese tradeoff es intencional:
+
+- protege la integridad del sistema transaccional
+- evita que una caída del buscador rompa depósitos, retiros o transferencias
+- mantiene a PostgreSQL como única fuente de verdad
+
+El costo es que puede existir desfase temporal entre datos transaccionales y resultados de búsqueda hasta reintento o reindexación.
 
 ## API GraphQL
 
@@ -363,43 +367,182 @@ Si una respuesta cacheada de `accountsByClient` incluye balance, ese balance es 
 ### Queries
 
 - `client(id)`
+- `clients`
 - `account(id)`
+- `accounts`
 - `accountByAccountNumber(accountNumber)`
 - `accountsByClient(clientId)`
+- `transaction(id)`
+- `transactions`
+- `exchangeRate(baseCurrency, targetCurrency)`
+- `exchangeRates`
 - `searchClients(term)`
 - `searchAccounts(term)`
 - `searchTransactions(filters)`
-- `exchangeRate(baseCurrency, targetCurrency)`
 
-## Quick Start
+### Filtros de `searchTransactions`
 
-### Instalar dependencias
+- `type`
+- `accountId`
+- `sourceAccountId`
+- `destinationAccountId`
+- `currency`
+- `dateFrom`
+- `dateTo`
+- `text`
+
+## Manejo de Errores
+
+Las excepciones de dominio se exponen en GraphQL mediante `extensions.code`.
+
+Ejemplos:
+
+- `INSUFFICIENT_FUNDS`
+- `ACCOUNT_BLOCKED`
+- `ACCOUNT_INACTIVE`
+- `EXCHANGE_RATE_NOT_CONFIGURED`
+- `IDEMPOTENCY_KEY_REUSE`
+- `RESOURCE_NOT_FOUND`
+- `DUPLICATE_RESOURCE`
+
+Esto facilita manejo programático desde clientes API o frontends.
+
+## Cómo Ejecutarlo
+
+### 1. Instalar dependencias
 
 ```bash
 npm install
 ```
 
-### Configurar variables de entorno
+### 2. Configurar variables de entorno
 
-Copiar `.env.template` y ajustar valores si es necesario.
+Usa `.env.template` como base y crea tu `.env`.
 
-### Ejecutar migraciones
+Variables relevantes:
+
+```env
+DB_HOST=
+DB_PORT=
+DB_USERNAME=
+DB_PASSWORD=
+DB_DATABASE=
+
+REDIS_HOST=
+REDIS_PORT=
+REDIS_USERNAME=
+REDIS_PASSWORD=
+REDIS_DB=0
+REDIS_CONNECT_TIMEOUT=3000
+
+ELASTICSEARCH_NODE=
+ELASTICSEARCH_API_KEY=
+ELASTICSEARCH_USERNAME=
+ELASTICSEARCH_PASSWORD=
+
+PORT=3000
+NODE_ENV=development
+```
+
+### 3. Ejecutar migraciones
+
+En desarrollo:
 
 ```bash
 npm run migration:run:dev
 ```
 
-### Iniciar el servidor
+En build productivo:
+
+```bash
+npm run migration:run
+```
+
+### 4. Iniciar el servidor
 
 ```bash
 npm run start:dev
 ```
 
-### Abrir GraphQL Playground
+GraphQL queda disponible en:
 
 `http://localhost:3000/graphql`
 
-## Ejemplos de Operaciones GraphQL
+## Migraciones
+
+Crear migración vacía:
+
+```bash
+npm run migration:create --name=NombreMigracion
+```
+
+Generar migración desde cambios de entidades:
+
+```bash
+npm run migration:generate --name=NombreMigracion
+```
+
+Ejecutar migraciones en desarrollo:
+
+```bash
+npm run migration:run:dev
+```
+
+Revertir la última migración en desarrollo:
+
+```bash
+npm run migration:revert:dev
+```
+
+Ver migraciones pendientes:
+
+```bash
+npm run migration:show:dev
+```
+
+## Cómo Probar
+
+### Build
+
+```bash
+npm run build
+```
+
+### Unit tests
+
+```bash
+npm test -- --runInBand
+```
+
+### Coverage
+
+```bash
+npm run test:cov
+```
+
+### E2E
+
+```bash
+npm run test:e2e
+```
+
+Hoy la suite existente es pequeña; el punto fuerte de la solución está más en las decisiones de diseño, locking, idempotencia y trazabilidad que en cobertura completa automatizada.
+
+## Health Check
+
+Endpoint HTTP:
+
+`GET /health`
+
+Verifica:
+
+- PostgreSQL
+- Redis
+- Elasticsearch
+
+Si una dependencia crítica no responde, el endpoint devuelve `HTTP 503`.
+
+## Ejemplos de Operaciones
 
 ### Crear cliente
 
@@ -414,6 +557,7 @@ mutation {
     }
   ) {
     id
+    email
   }
 }
 ```
@@ -432,115 +576,107 @@ mutation {
   ) {
     id
     balance
+    status
   }
 }
 ```
 
-### Depositar
+### Depositar con idempotencia
 
 ```graphql
 mutation {
-  deposit(input: { accountId: "ACCOUNT_ID", amount: "100" }) {
+  deposit(
+    input: {
+      accountId: "ACCOUNT_ID"
+      amount: "100.00"
+      idempotencyKey: "dep-001"
+      description: "cash-in"
+    }
+  ) {
     id
+    type
     sourceAmount
   }
 }
 ```
 
-### Transferir
+### Transferencia multi-moneda
 
 ```graphql
 mutation {
   transfer(
     input: {
-      sourceAccountId: "ACCOUNT_A"
-      destinationAccountId: "ACCOUNT_B"
-      amount: "50"
+      sourceAccountId: "ACCOUNT_USD"
+      destinationAccountId: "ACCOUNT_DOP"
+      amount: "25.00"
+      idempotencyKey: "tx-001"
+      description: "international transfer"
     }
   ) {
     id
+    sourceCurrency
+    destinationCurrency
     sourceAmount
     destinationAmount
+    exchangeRateUsed
   }
 }
 ```
 
-## Health Check
+### Búsqueda de transacciones en Elastic
 
-Endpoint HTTP:
-
-`GET /health`
-
-Implementado con Terminus.
-
-Verifica:
-
-- PostgreSQL
-- Redis
-- Elasticsearch
-
-Si una dependencia crítica falla:
-
-`HTTP 503`
-
-## Variables de Entorno
-
-```env
-DB_HOST=
-DB_PORT=
-DB_USERNAME=
-DB_PASSWORD=
-DB_DATABASE=
-
-REDIS_HOST=
-REDIS_PORT=
-REDIS_USERNAME=
-REDIS_PASSWORD=
-REDIS_DB=0
-REDIS_CONNECT_TIMEOUT=3000
-
-ELASTICSEARCH_NODE=
-
-PORT=3000
-NODE_ENV=development
+```graphql
+query {
+  searchTransactions(
+    filters: {
+      type: TRANSFER
+      sourceAccountId: "ACCOUNT_USD"
+      currency: DOP
+      dateFrom: "2026-01-01T00:00:00.000Z"
+      text: "international"
+    }
+  ) {
+    id
+    type
+    sourceAmount
+    destinationAmount
+    createdAt
+  }
+}
 ```
 
-## Migraciones
+## Estado Actual y Trabajo en Curso
 
-Generar migración:
+Actualmente ya están implementados los componentes centrales del backend financiero:
 
-```bash
-npm run migration:generate --name=NombreMigracion
-```
-
-Ejecutar migraciones:
-
-```bash
-npm run migration:run:dev
-```
-
-Revertir migración:
-
-```bash
-npm run migration:revert:dev
-```
-
-## Estado Actual
-
-Actualmente el proyecto incluye:
-
-- modelo de dominio
-- persistencia con migraciones
-- operaciones financieras principales
-- transferencias multi-moneda
-- control de concurrencia
-- idempotencia
-- caché selectiva con Redis para lecturas
+- clientes, cuentas, depósitos, retiros y transferencias
+- transferencias multi-moneda con tasa vigente
+- control de concurrencia con locking pesimista
+- idempotencia en operaciones financieras
+- caché selectiva con Redis
+- búsquedas respaldadas por Elasticsearch
 - health checks
 
-Fuera del alcance actual:
+Todavía estoy trabajando en algunos puntos del alcance original de la prueba:
 
-- Elasticsearch como índice de búsqueda real
-- seeds
-- Docker
-- suite completa de tests
+- seeds de datos
+- Docker y orquestación local
+- ampliación de la suite de tests, especialmente e2e y escenarios de concurrencia
+
+Hay además decisiones que sí quedaron fuera del alcance actual de esta iteración:
+
+- autenticación y autorización
+- saga/outbox para reintentos de indexación
+- reindexación masiva de datos históricos
+- observabilidad completa con métricas y tracing
+
+## Resumen Ejecutivo
+
+Lo más importante son estas decisiones:
+
+- balances y fondos salen solo de PostgreSQL
+- transferencias usan locking pesimista y orden estable de bloqueo
+- la idempotencia está diseñada para tolerar reintentos y carreras
+- Redis acelera lecturas pero no participa en consistencia
+- Elasticsearch resuelve búsqueda sin convertirse en fuente de verdad
+- las transferencias multi-moneda preservan trazabilidad con monto origen, monto destino y tasa usada
