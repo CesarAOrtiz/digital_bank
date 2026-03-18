@@ -699,12 +699,6 @@ El repositorio ya incluye unit tests orientados a las partes más sensibles del 
 - `TransactionWriteService`: depósitos, retiros, transferencias, fondos insuficientes, idempotencia, invalidación de caché e indexación
 - `SearchQueryService`: construcción de queries a Elastic y mapeo de resultados
 
-### Coverage
-
-```bash
-npm run test:cov
-```
-
 ### E2E
 
 ```bash
@@ -855,7 +849,7 @@ Actualmente ya están implementados los componentes centrales del backend financ
 Todavía estoy ampliando algunos puntos del alcance original de la prueba:
 
 - ampliación de la suite de tests, especialmente escenarios e2e adicionales y concurrencia
-- endurecimiento operativo de la experiencia Docker en entornos distintos
+- validación y ajuste fino del flujo Docker en distintos entornos locales
 
 Hay además decisiones que sí quedaron fuera del alcance actual de esta iteración:
 
