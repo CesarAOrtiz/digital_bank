@@ -523,7 +523,7 @@ docker compose run --rm app npm run seed:reset:prod
 Primera vez:
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 docker compose run --rm app npm run migration:run:prod
 docker compose run --rm app npm run seed:prod
 ```
@@ -531,7 +531,7 @@ docker compose run --rm app npm run seed:prod
 Siguientes veces:
 
 ```bash
-docker compose up
+docker compose up -d
 ```
 
 Cuando agregues nuevas migraciones:
