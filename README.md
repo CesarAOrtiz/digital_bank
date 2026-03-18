@@ -550,6 +550,11 @@ npm run build
 npm test -- --runInBand
 ```
 
+El repositorio ya incluye unit tests orientados a las partes más sensibles del dominio:
+
+- `TransactionWriteService`: depósitos, retiros, transferencias, fondos insuficientes, idempotencia, invalidación de caché e indexación
+- `SearchQueryService`: construcción de queries a Elastic y mapeo de resultados
+
 ### Coverage
 
 ```bash
@@ -562,7 +567,16 @@ npm run test:cov
 npm run test:e2e
 ```
 
-Hoy la suite existente es pequeña; el punto fuerte de la solución está más en las decisiones de diseño, locking, idempotencia y trazabilidad que en cobertura completa automatizada.
+La suite e2e actual cubre el contrato GraphQL de los flujos más relevantes:
+
+- `deposit`
+- `withdraw`
+- `transfer`
+- `searchClients`
+- `searchAccounts`
+- `searchTransactions`
+
+El punto fuerte de la solución está más en las decisiones de diseño, locking, idempotencia y trazabilidad que en cobertura completa automatizada.
 
 ## Health Check
 
