@@ -547,6 +547,50 @@ Rutas útiles:
 - GraphQL: `http://localhost:3000/graphql`
 - Health: `http://localhost:3000/health`
 
+### Probar Con Postman
+
+El repositorio incluye una colección lista para importar:
+
+- `postman/digital-bank.postman_collection.json`
+
+Importación:
+
+1. Abrir Postman.
+2. Hacer clic en `Import`.
+3. Elegir `File`.
+4. Seleccionar `postman/digital-bank.postman_collection.json`.
+
+La colección crea estas variables:
+
+- `baseUrl` = `http://localhost:3000`
+- `graphqlUrl` = `{{baseUrl}}/graphql`
+- `clientId`
+- `accountId`
+- `sourceAccountId`
+- `destinationAccountId`
+- `transactionId`
+
+Incluye requests para:
+
+- health check
+- crear y consultar clientes
+- crear y consultar cuentas
+- crear y consultar tasas de cambio
+- depositar, retirar y transferir
+- buscar clientes, cuentas y transacciones
+
+Flujo recomendado en Postman:
+
+1. `Create Client`
+2. `Create Account`
+3. `Create Destination Account`
+4. `Create Exchange Rate`
+5. `Deposit`
+6. `Transfer`
+7. `List Transactions` o búsquedas
+
+Los requests de creación actualizan variables automáticamente para poder encadenar pruebas sin copiar IDs manualmente.
+
 ### Migraciones y seeds
 
 Las migraciones y los seeds no se ejecutan automáticamente al iniciar el stack.

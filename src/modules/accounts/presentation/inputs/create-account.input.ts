@@ -1,10 +1,19 @@
 import { Field, ID, InputType } from '@nestjs/graphql';
-import { IsEnum, IsOptional, IsUUID, Matches } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+} from 'class-validator';
 import { Currency } from '../../../../common/domain/enums';
 
 @InputType()
 export class CreateAccountInput {
   @Field()
+  @IsString()
+  @IsNotEmpty()
   accountNumber!: string;
 
   @Field(() => ID)

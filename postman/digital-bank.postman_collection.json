@@ -1,0 +1,602 @@
+{
+  "info": {
+    "_postman_id": "1c768660-a08c-4622-ad12-8f03f79694b5",
+    "name": "Digital Bank GraphQL",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "graphqlUrl",
+      "value": "{{baseUrl}}/graphql"
+    },
+    {
+      "key": "clientId",
+      "value": ""
+    },
+    {
+      "key": "accountId",
+      "value": ""
+    },
+    {
+      "key": "sourceAccountId",
+      "value": ""
+    },
+    {
+      "key": "destinationAccountId",
+      "value": ""
+    },
+    {
+      "key": "transactionId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Clients",
+      "item": [
+        {
+          "name": "Create Client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "const id = response?.data?.createClient?.id;",
+                  "if (id) {",
+                  "  pm.collectionVariables.set('clientId', id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation CreateClient($input: CreateClientInput!) { createClient(input: $input) { id firstName lastName email documentNumber createdAt } }\",\n  \"variables\": {\n    \"input\": {\n      \"firstName\": \"Juan\",\n      \"lastName\": \"Perez\",\n      \"email\": \"juan.perez@example.com\",\n      \"documentNumber\": \"001-1234567-8\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Clients",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { clients { id firstName lastName email documentNumber createdAt updatedAt } }\"\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Client By Id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query Client($id: ID!) { client(id: $id) { id firstName lastName email documentNumber createdAt updatedAt } }\",\n  \"variables\": {\n    \"id\": \"{{clientId}}\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Clients",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query SearchClients($term: String!) { searchClients(term: $term) { id firstName lastName email documentNumber } }\",\n  \"variables\": {\n    \"term\": \"Juan\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Accounts",
+      "item": [
+        {
+          "name": "Create Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "const id = response?.data?.createAccount?.id;",
+                  "if (id) {",
+                  "  pm.collectionVariables.set('accountId', id);",
+                  "  pm.collectionVariables.set('sourceAccountId', id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation CreateAccount($input: CreateAccountInput!) { createAccount(input: $input) { id clientId accountNumber currency balance status createdAt updatedAt } }\",\n  \"variables\": {\n    \"input\": {\n      \"clientId\": \"{{clientId}}\",\n      \"accountNumber\": \"ACC-1001\",\n      \"currency\": \"DOP\",\n      \"initialBalance\": \"1500.00\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Destination Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "const id = response?.data?.createAccount?.id;",
+                  "if (id) {",
+                  "  pm.collectionVariables.set('destinationAccountId', id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation CreateAccount($input: CreateAccountInput!) { createAccount(input: $input) { id clientId accountNumber currency balance status createdAt updatedAt } }\",\n  \"variables\": {\n    \"input\": {\n      \"clientId\": \"{{clientId}}\",\n      \"accountNumber\": \"ACC-2001\",\n      \"currency\": \"DOP\",\n      \"initialBalance\": \"200.00\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Accounts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { accounts { id accountNumber clientId currency balance status createdAt updatedAt } }\"\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Account By Id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query Account($id: ID!) { account(id: $id) { id accountNumber clientId currency balance status createdAt updatedAt } }\",\n  \"variables\": {\n    \"id\": \"{{accountId}}\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Accounts By Client",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query AccountsByClient($clientId: ID!) { accountsByClient(clientId: $clientId) { id accountNumber clientId currency balance status } }\",\n  \"variables\": {\n    \"clientId\": \"{{clientId}}\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Account By Account Number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query AccountByNumber($accountNumber: String!) { accountByAccountNumber(accountNumber: $accountNumber) { id accountNumber clientId currency balance status } }\",\n  \"variables\": {\n    \"accountNumber\": \"ACC-1001\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Accounts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query SearchAccounts($term: String!) { searchAccounts(term: $term) { id accountNumber clientId currency balance status } }\",\n  \"variables\": {\n    \"term\": \"ACC-1001\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Exchange Rates",
+      "item": [
+        {
+          "name": "Create Exchange Rate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation CreateExchangeRate($input: CreateExchangeRateInput!) { createExchangeRate(input: $input) { id baseCurrency targetCurrency rate effectiveAt createdAt } }\",\n  \"variables\": {\n    \"input\": {\n      \"baseCurrency\": \"USD\",\n      \"targetCurrency\": \"DOP\",\n      \"rate\": \"58.75\",\n      \"effectiveAt\": \"2026-03-18T00:00:00Z\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Exchange Rates",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { exchangeRates { id baseCurrency targetCurrency rate effectiveAt createdAt } }\"\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Exchange Rate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query ExchangeRate($baseCurrency: Currency!, $targetCurrency: Currency!) { exchangeRate(baseCurrency: $baseCurrency, targetCurrency: $targetCurrency) { id baseCurrency targetCurrency rate effectiveAt createdAt } }\",\n  \"variables\": {\n    \"baseCurrency\": \"USD\",\n    \"targetCurrency\": \"DOP\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "Deposit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "const id = response?.data?.deposit?.id;",
+                  "if (id) {",
+                  "  pm.collectionVariables.set('transactionId', id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation Deposit($input: DepositInput!) { deposit(input: $input) { id type sourceAccountId sourceAmount sourceCurrency description idempotencyKey createdAt } }\",\n  \"variables\": {\n    \"input\": {\n      \"accountId\": \"{{accountId}}\",\n      \"amount\": \"500.00\",\n      \"description\": \"Deposito inicial\",\n      \"idempotencyKey\": \"dep-001\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Withdraw",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation Withdraw($input: WithdrawalInput!) { withdraw(input: $input) { id type sourceAccountId sourceAmount sourceCurrency description idempotencyKey createdAt } }\",\n  \"variables\": {\n    \"input\": {\n      \"accountId\": \"{{accountId}}\",\n      \"amount\": \"100.00\",\n      \"description\": \"Retiro ATM\",\n      \"idempotencyKey\": \"wd-001\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation Transfer($input: TransferInput!) { transfer(input: $input) { id type sourceAccountId destinationAccountId sourceAmount destinationAmount sourceCurrency destinationCurrency exchangeRateUsed description idempotencyKey createdAt } }\",\n  \"variables\": {\n    \"input\": {\n      \"sourceAccountId\": \"{{sourceAccountId}}\",\n      \"destinationAccountId\": \"{{destinationAccountId}}\",\n      \"amount\": \"250.00\",\n      \"description\": \"Transferencia prueba\",\n      \"idempotencyKey\": \"tx-001\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Transactions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { transactions { id type sourceAccountId destinationAccountId sourceAmount destinationAmount sourceCurrency destinationCurrency description idempotencyKey createdAt } }\"\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transaction By Id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query Transaction($id: ID!) { transaction(id: $id) { id type sourceAccountId destinationAccountId sourceAmount destinationAmount sourceCurrency destinationCurrency exchangeRateUsed description idempotencyKey createdAt } }\",\n  \"variables\": {\n    \"id\": \"{{transactionId}}\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Transactions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query SearchTransactions($filters: SearchTransactionsInput) { searchTransactions(filters: $filters) { id type sourceAccountId destinationAccountId sourceAmount destinationAmount sourceCurrency destinationCurrency description idempotencyKey createdAt } }\",\n  \"variables\": {\n    \"filters\": {\n      \"accountId\": \"{{accountId}}\",\n      \"type\": \"DEPOSIT\",\n      \"dateFrom\": \"2026-03-01T00:00:00Z\",\n      \"dateTo\": \"2026-03-31T23:59:59Z\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
