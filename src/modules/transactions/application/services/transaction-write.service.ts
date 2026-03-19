@@ -3,9 +3,9 @@ import { Transaction } from '../../domain';
 import type { DepositTransactionInput } from '../inputs/deposit-transaction.input';
 import type { TransferTransactionInput } from '../inputs/transfer-transaction.input';
 import type { WithdrawTransactionInput } from '../inputs/withdraw-transaction.input';
-import { DepositUseCase } from './deposit.use-case';
-import { TransferUseCase } from './transfer.use-case';
-import { WithdrawUseCase } from './withdraw.use-case';
+import { DepositUseCase } from '../use-cases/deposit.use-case';
+import { TransferUseCase } from '../use-cases/transfer.use-case';
+import { WithdrawUseCase } from '../use-cases/withdraw.use-case';
 
 @Injectable()
 export class TransactionWriteService {

@@ -6,9 +6,9 @@ import { Account } from '../../../accounts/domain';
 import { Transaction } from '../../domain';
 import type { FinancialTransactionContext } from '../contracts/financial-transaction-manager.contract';
 import type { WithdrawTransactionInput } from '../inputs/withdraw-transaction.input';
-import { buildWithdrawalRequestFingerprint } from './transaction-request-fingerprint';
-import { TransactionIdempotencyService } from './transaction-idempotency.service';
-import { TransactionMutationSupportService } from './transaction-mutation-support.service';
+import { TransactionIdempotencyService } from '../services/transaction-idempotency.service';
+import { TransactionMutationSupportService } from '../services/transaction-mutation-support.service';
+import { buildWithdrawalRequestFingerprint } from '../utils/transaction-request-fingerprint';
 
 @Injectable()
 export class WithdrawUseCase {

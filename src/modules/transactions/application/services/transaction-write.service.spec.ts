@@ -1,8 +1,8 @@
 import { Transaction } from '../../domain';
-import { DepositUseCase } from './deposit.use-case';
-import { TransferUseCase } from './transfer.use-case';
+import { DepositUseCase } from '../use-cases/deposit.use-case';
+import { TransferUseCase } from '../use-cases/transfer.use-case';
 import { TransactionWriteService } from './transaction-write.service';
-import { WithdrawUseCase } from './withdraw.use-case';
+import { WithdrawUseCase } from '../use-cases/withdraw.use-case';
 
 describe('TransactionWriteService', () => {
   function buildTransaction() {

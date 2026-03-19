@@ -10,7 +10,7 @@ import {
   buildDepositRequestFingerprint,
   buildTransferRequestFingerprint,
   buildWithdrawalRequestFingerprint,
-} from '../services/transaction-request-fingerprint';
+} from '../utils/transaction-request-fingerprint';
 
 @Injectable()
 export class TransactionIdempotencyValidator {

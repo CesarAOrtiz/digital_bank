@@ -3,8 +3,8 @@ import { InsufficientFundsException } from '../../../../common/domain/exceptions
 import { Account } from '../../../accounts/domain';
 import { Transaction } from '../../domain';
 import type { FinancialTransactionContext } from '../contracts/financial-transaction-manager.contract';
-import { TransactionIdempotencyService } from './transaction-idempotency.service';
-import { TransactionMutationSupportService } from './transaction-mutation-support.service';
+import { TransactionIdempotencyService } from '../services/transaction-idempotency.service';
+import { TransactionMutationSupportService } from '../services/transaction-mutation-support.service';
 import { WithdrawUseCase } from './withdraw.use-case';
 
 describe('WithdrawUseCase', () => {
