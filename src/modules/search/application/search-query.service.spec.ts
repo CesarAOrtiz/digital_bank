@@ -7,15 +7,37 @@ describe('SearchQueryService', () => {
     const elastic = {
       search: jest.fn(),
     };
+    const clientRepository = {
+      search: jest.fn(),
+    };
+    const accountRepository = {
+      search: jest.fn(),
+    };
+    const transactionRepository = {
+      search: jest.fn(),
+    };
     const appLogger = {
       log: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
     } as unknown as jest.Mocked<AppLogger>;
 
-    const service = new SearchQueryService(elastic as never, appLogger);
+    const service = new SearchQueryService(
+      elastic as never,
+      clientRepository as never,
+      accountRepository as never,
+      transactionRepository as never,
+      appLogger,
+    );
 
-    return { service, elastic, appLogger };
+    return {
+      service,
+      elastic,
+      clientRepository,
+      accountRepository,
+      transactionRepository,
+      appLogger,
+    };
   }
 
   it('searchClients debe devolver arreglo vacío y no consultar Elastic si el término está vacío', async () => {
@@ -324,5 +346,111 @@ describe('SearchQueryService', () => {
       sort: [{ createdAt: { order: 'desc' } }],
       size: 50,
     });
+  });
+
+  it('searchClients debe hacer fallback a PostgreSQL si Elastic falla', async () => {
+    const { service, elastic, clientRepository, appLogger } = createSut();
+    const fallbackResult = [
+      {
+        toPrimitives: () => ({
+          id: 'client-db-1',
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+          email: 'ada@example.com',
+          documentNumber: 'DOC-1',
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        }),
+      },
+    ];
+    elastic.search.mockRejectedValue(new Error('elastic unavailable'));
+    clientRepository.search.mockResolvedValue(fallbackResult);
+
+    const result = await service.searchClients('Ada');
+
+    expect(clientRepository.search).toHaveBeenCalledWith('Ada');
+    expect(appLogger.warn).toHaveBeenCalledWith(
+      'search.clients.fallback_to_postgres',
+      expect.objectContaining({
+        term: 'Ada',
+        reason: 'elastic unavailable',
+      }),
+    );
+    expect(result).toBe(fallbackResult);
+  });
+
+  it('searchAccounts debe hacer fallback a PostgreSQL si Elastic falla', async () => {
+    const { service, elastic, accountRepository, appLogger } = createSut();
+    const fallbackResult = [
+      {
+        toPrimitives: () => ({
+          id: 'account-db-1',
+          accountNumber: 'ACC-DB-1',
+          clientId: 'client-1',
+          currency: Currency.USD,
+          status: AccountStatus.ACTIVE,
+          balance: '100.00',
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        }),
+      },
+    ];
+    elastic.search.mockRejectedValue(new Error('elastic unavailable'));
+    accountRepository.search.mockResolvedValue(fallbackResult);
+
+    const result = await service.searchAccounts('ACC');
+
+    expect(accountRepository.search).toHaveBeenCalledWith('ACC');
+    expect(appLogger.warn).toHaveBeenCalledWith(
+      'search.accounts.fallback_to_postgres',
+      expect.objectContaining({
+        term: 'ACC',
+        reason: 'elastic unavailable',
+      }),
+    );
+    expect(result).toBe(fallbackResult);
+  });
+
+  it('searchTransactions debe hacer fallback a PostgreSQL si Elastic falla', async () => {
+    const { service, elastic, transactionRepository, appLogger } = createSut();
+    const filters = {
+      type: TransactionType.TRANSFER,
+      accountId: 'account-1',
+      text: 'international',
+    };
+    const fallbackResult = [
+      {
+        toPrimitives: () => ({
+          id: 'tx-db-1',
+          type: TransactionType.TRANSFER,
+          sourceAccountId: 'account-1',
+          destinationAccountId: 'account-2',
+          sourceCurrency: Currency.USD,
+          destinationCurrency: Currency.DOP,
+          sourceAmount: '10.00',
+          destinationAmount: '605.00',
+          exchangeRateUsed: '60.500000',
+          idempotencyKey: 'tx-1',
+          description: 'international',
+          createdAt: new Date('2026-01-03T00:00:00.000Z'),
+        }),
+      },
+    ];
+    elastic.search.mockRejectedValue(new Error('elastic unavailable'));
+    transactionRepository.search.mockResolvedValue(fallbackResult);
+
+    const result = await service.searchTransactions(filters);
+
+    expect(transactionRepository.search).toHaveBeenCalledWith(filters);
+    expect(appLogger.warn).toHaveBeenCalledWith(
+      'search.transactions.fallback_to_postgres',
+      expect.objectContaining({
+        text: 'international',
+        type: TransactionType.TRANSFER,
+        accountId: 'account-1',
+        reason: 'elastic unavailable',
+      }),
+    );
+    expect(result).toBe(fallbackResult);
   });
 });

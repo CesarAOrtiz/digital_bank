@@ -362,6 +362,30 @@ Ese tradeoff es intencional:
 
 El costo es que puede existir desfase temporal entre datos transaccionales y resultados de búsqueda hasta reintento o reindexación.
 
+### Degradación Controlada
+
+Elasticsearch no forma parte del camino crítico de arranque de la API.
+
+Si Elastic no está disponible al iniciar:
+
+- la aplicación sigue levantando
+- el bootstrap de índices se omite
+- se registra un `warn` operativo
+
+Si Elastic no está disponible al ejecutar búsquedas:
+
+- `searchClients(term)` hace fallback a PostgreSQL
+- `searchAccounts(term)` hace fallback a PostgreSQL
+- `searchTransactions(filters)` hace fallback a PostgreSQL
+
+Este fallback reutiliza los repositorios TypeORM ya implementados para conservar disponibilidad funcional aunque se pierda temporalmente la capacidad de búsqueda especializada de Elastic.
+
+El tradeoff es explícito:
+
+- PostgreSQL mantiene la continuidad operativa
+- Elastic aporta mejor experiencia de búsqueda, pero no define la disponibilidad del sistema
+- los resultados del fallback pueden no tener el mismo ranking o flexibilidad textual que Elastic
+
 ## API GraphQL
 
 ### Mutations

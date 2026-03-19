@@ -7,10 +7,18 @@ import {
 } from '../../../common/domain/enums';
 import { ELASTIC_CLIENT } from '../../../common/infrastructure/elasticsearch/elasticsearch.tokens';
 import { AppLogger } from '../../../common/infrastructure/logging/app-logger.service';
+import {
+  ACCOUNT_REPOSITORY,
+  CLIENT_REPOSITORY,
+  TRANSACTION_REPOSITORY,
+} from '../../../common/infrastructure/repository.tokens';
 import { Account } from '../../accounts/domain';
+import type { AccountRepository } from '../../accounts/domain';
 import { Client } from '../../clients/domain';
+import type { ClientRepository } from '../../clients/domain';
 import {
   Transaction,
+  type TransactionRepository,
   TransactionSearchFilters,
 } from '../../transactions/domain';
 
@@ -59,6 +67,12 @@ interface TransactionSearchDocument {
 export class SearchQueryService {
   constructor(
     @Inject(ELASTIC_CLIENT) private readonly elastic: ElasticClient,
+    @Inject(CLIENT_REPOSITORY)
+    private readonly clientRepository: ClientRepository,
+    @Inject(ACCOUNT_REPOSITORY)
+    private readonly accountRepository: AccountRepository,
+    @Inject(TRANSACTION_REPOSITORY)
+    private readonly transactionRepository: TransactionRepository,
     private readonly appLogger: AppLogger,
   ) {}
 
@@ -69,57 +83,12 @@ export class SearchQueryService {
     }
     const startedAt = Date.now();
 
-    const response = await this.elastic.search<ClientSearchDocument>({
-      index: CLIENTS_INDEX,
-      query: {
-        bool: {
-          should: [
-            {
-              multi_match: {
-                query: normalizedTerm,
-                fields: ['fullName^3', 'firstName^2', 'lastName^2', 'email'],
-                type: 'bool_prefix',
-              },
-            },
-            {
-              wildcard: {
-                documentNumber: {
-                  value: `*${normalizedTerm.toLowerCase()}*`,
-                  case_insensitive: true,
-                },
-              },
-            },
-            {
-              wildcard: {
-                'email.keyword': {
-                  value: `*${normalizedTerm.toLowerCase()}*`,
-                  case_insensitive: true,
-                },
-              },
-            },
-          ],
-          minimum_should_match: 1,
-        },
-      },
-      sort: [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }],
-      size: 25,
-    });
-
-    const clients = response.hits.hits
-      .map((hit) => hit._source)
-      .filter((doc): doc is ClientSearchDocument => !!doc)
-      .map(
-        (doc) =>
-          new Client({
-            id: doc.id,
-            firstName: doc.firstName,
-            lastName: doc.lastName,
-            email: doc.email,
-            documentNumber: doc.documentNumber,
-            createdAt: new Date(doc.createdAt),
-            updatedAt: new Date(doc.updatedAt),
-          }),
-      );
+    const clients = await this.runWithFallback(
+      'clients',
+      () => this.searchClientsInElastic(normalizedTerm),
+      () => this.clientRepository.search(normalizedTerm),
+      { term: normalizedTerm },
+    );
 
     this.appLogger.log('search.clients.executed', {
       index: CLIENTS_INDEX,
@@ -138,51 +107,12 @@ export class SearchQueryService {
     }
     const startedAt = Date.now();
 
-    const response = await this.elastic.search<AccountSearchDocument>({
-      index: ACCOUNTS_INDEX,
-      query: {
-        bool: {
-          should: [
-            {
-              wildcard: {
-                accountNumber: {
-                  value: `*${normalizedTerm.toLowerCase()}*`,
-                  case_insensitive: true,
-                },
-              },
-            },
-            {
-              wildcard: {
-                clientId: {
-                  value: `*${normalizedTerm.toLowerCase()}*`,
-                  case_insensitive: true,
-                },
-              },
-            },
-          ],
-          minimum_should_match: 1,
-        },
-      },
-      sort: [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }],
-      size: 25,
-    });
-
-    const accounts = response.hits.hits
-      .map((hit) => hit._source)
-      .filter((doc): doc is AccountSearchDocument => !!doc)
-      .map(
-        (doc) =>
-          new Account({
-            id: doc.id,
-            accountNumber: doc.accountNumber,
-            clientId: doc.clientId,
-            currency: doc.currency as Currency,
-            balance: doc.balance.toFixed(2),
-            status: doc.status as AccountStatus,
-            createdAt: new Date(doc.createdAt),
-            updatedAt: new Date(doc.updatedAt),
-          }),
-      );
+    const accounts = await this.runWithFallback(
+      'accounts',
+      () => this.searchAccountsInElastic(normalizedTerm),
+      () => this.accountRepository.search(normalizedTerm),
+      { term: normalizedTerm },
+    );
 
     this.appLogger.log('search.accounts.executed', {
       index: ACCOUNTS_INDEX,
@@ -287,21 +217,168 @@ export class SearchQueryService {
       });
     }
 
+    const transactions = await this.runWithFallback(
+      'transactions',
+      () =>
+        this.searchTransactionsInElastic({
+          filters,
+          must,
+          filter,
+        }),
+      () => this.transactionRepository.search(filters),
+      {
+        text: filters.text?.trim() || undefined,
+        type: filters.type,
+        accountId: filters.accountId,
+        sourceAccountId: filters.sourceAccountId,
+        destinationAccountId: filters.destinationAccountId,
+        currency: filters.currency,
+        dateFrom: filters.dateFrom?.toISOString(),
+        dateTo: filters.dateTo?.toISOString(),
+      },
+    );
+
+    this.appLogger.log('search.transactions.executed', {
+      index: TRANSACTIONS_INDEX,
+      filters: {
+        text: filters.text?.trim() || undefined,
+        type: filters.type,
+        accountId: filters.accountId,
+        sourceAccountId: filters.sourceAccountId,
+        destinationAccountId: filters.destinationAccountId,
+        currency: filters.currency,
+        dateFrom: filters.dateFrom?.toISOString(),
+        dateTo: filters.dateTo?.toISOString(),
+      },
+      resultCount: transactions.length,
+      durationMs: Date.now() - startedAt,
+    });
+
+    return transactions;
+  }
+
+  private async searchClientsInElastic(term: string): Promise<Client[]> {
+    const response = await this.elastic.search<ClientSearchDocument>({
+      index: CLIENTS_INDEX,
+      query: {
+        bool: {
+          should: [
+            {
+              multi_match: {
+                query: term,
+                fields: ['fullName^3', 'firstName^2', 'lastName^2', 'email'],
+                type: 'bool_prefix',
+              },
+            },
+            {
+              wildcard: {
+                documentNumber: {
+                  value: `*${term.toLowerCase()}*`,
+                  case_insensitive: true,
+                },
+              },
+            },
+            {
+              wildcard: {
+                'email.keyword': {
+                  value: `*${term.toLowerCase()}*`,
+                  case_insensitive: true,
+                },
+              },
+            },
+          ],
+          minimum_should_match: 1,
+        },
+      },
+      sort: [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }],
+      size: 25,
+    });
+
+    return response.hits.hits
+      .map((hit) => hit._source)
+      .filter((doc): doc is ClientSearchDocument => !!doc)
+      .map(
+        (doc) =>
+          new Client({
+            id: doc.id,
+            firstName: doc.firstName,
+            lastName: doc.lastName,
+            email: doc.email,
+            documentNumber: doc.documentNumber,
+            createdAt: new Date(doc.createdAt),
+            updatedAt: new Date(doc.updatedAt),
+          }),
+      );
+  }
+
+  private async searchAccountsInElastic(term: string): Promise<Account[]> {
+    const response = await this.elastic.search<AccountSearchDocument>({
+      index: ACCOUNTS_INDEX,
+      query: {
+        bool: {
+          should: [
+            {
+              wildcard: {
+                accountNumber: {
+                  value: `*${term.toLowerCase()}*`,
+                  case_insensitive: true,
+                },
+              },
+            },
+            {
+              wildcard: {
+                clientId: {
+                  value: `*${term.toLowerCase()}*`,
+                  case_insensitive: true,
+                },
+              },
+            },
+          ],
+          minimum_should_match: 1,
+        },
+      },
+      sort: [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }],
+      size: 25,
+    });
+
+    return response.hits.hits
+      .map((hit) => hit._source)
+      .filter((doc): doc is AccountSearchDocument => !!doc)
+      .map(
+        (doc) =>
+          new Account({
+            id: doc.id,
+            accountNumber: doc.accountNumber,
+            clientId: doc.clientId,
+            currency: doc.currency as Currency,
+            balance: doc.balance.toFixed(2),
+            status: doc.status as AccountStatus,
+            createdAt: new Date(doc.createdAt),
+            updatedAt: new Date(doc.updatedAt),
+          }),
+      );
+  }
+
+  private async searchTransactionsInElastic(options: {
+    filters: TransactionSearchFilters;
+    must: object[];
+    filter: object[];
+  }): Promise<Transaction[]> {
     const response = await this.elastic.search<TransactionSearchDocument>({
       index: TRANSACTIONS_INDEX,
       query: {
         bool: {
-          ...(must.length ? { must } : {}),
-          ...(filter.length ? { filter } : {}),
+          ...(options.must.length ? { must: options.must } : {}),
+          ...(options.filter.length ? { filter: options.filter } : {}),
         },
       },
-      sort: must.length
+      sort: options.must.length
         ? [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }]
         : [{ createdAt: { order: 'desc' } }],
       size: 50,
     });
 
-    const transactions = response.hits.hits
+    return response.hits.hits
       .map((hit) => hit._source)
       .filter((doc): doc is TransactionSearchDocument => !!doc)
       .map(
@@ -324,23 +401,24 @@ export class SearchQueryService {
             createdAt: new Date(doc.createdAt),
           }),
       );
+  }
 
-    this.appLogger.log('search.transactions.executed', {
-      index: TRANSACTIONS_INDEX,
-      filters: {
-        text: filters.text?.trim() || undefined,
-        type: filters.type,
-        accountId: filters.accountId,
-        sourceAccountId: filters.sourceAccountId,
-        destinationAccountId: filters.destinationAccountId,
-        currency: filters.currency,
-        dateFrom: filters.dateFrom?.toISOString(),
-        dateTo: filters.dateTo?.toISOString(),
-      },
-      resultCount: transactions.length,
-      durationMs: Date.now() - startedAt,
-    });
-
-    return transactions;
+  private async runWithFallback<T>(
+    scope: 'clients' | 'accounts' | 'transactions',
+    primary: () => Promise<T>,
+    fallback: () => Promise<T>,
+    metadata: Record<string, unknown>,
+  ): Promise<T> {
+    try {
+      return await primary();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown Elastic error';
+      this.appLogger.warn(`search.${scope}.fallback_to_postgres`, {
+        ...metadata,
+        reason: message,
+      });
+      return fallback();
+    }
   }
 }
