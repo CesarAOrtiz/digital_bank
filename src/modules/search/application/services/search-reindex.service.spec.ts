@@ -1,8 +1,8 @@
-import { AccountStatus, Currency, TransactionType } from '../../../common/domain/enums';
-import { AppLogger } from '../../../common/infrastructure/logging/app-logger.service';
-import { Account } from '../../accounts/domain';
-import { Client } from '../../clients/domain';
-import { Transaction } from '../../transactions/domain';
+import { AccountStatus, Currency, TransactionType } from '../../../../common/domain/enums';
+import { AppLogger } from '../../../../common/infrastructure/logging/app-logger.service';
+import { Account } from '../../../accounts/domain';
+import { Client } from '../../../clients/domain';
+import { Transaction } from '../../../transactions/domain';
 import { SearchIndexingService } from './search-indexing.service';
 import { SearchReindexService } from './search-reindex.service';
 

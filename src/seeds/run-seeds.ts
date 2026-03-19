@@ -14,7 +14,7 @@ import { AccountOrmEntity } from '../modules/accounts/infrastructure';
 import { Client } from '../modules/clients/domain';
 import { ClientOrmEntity } from '../modules/clients/infrastructure';
 import { ExchangeRateOrmEntity } from '../modules/exchange-rates/infrastructure';
-import { SearchIndexingService } from '../modules/search/application/search-indexing.service';
+import { SearchIndexingService } from '../modules/search/application/services/search-indexing.service';
 import { Transaction } from '../modules/transactions/domain';
 import { TransactionOrmEntity } from '../modules/transactions/infrastructure';
 

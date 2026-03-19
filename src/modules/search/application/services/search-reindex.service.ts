@@ -1,13 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { AppLogger } from '../../../../common/infrastructure/logging/app-logger.service';
 import {
   ACCOUNT_REPOSITORY,
   CLIENT_REPOSITORY,
   TRANSACTION_REPOSITORY,
-} from '../../../common/infrastructure/repository.tokens';
-import { AppLogger } from '../../../common/infrastructure/logging/app-logger.service';
-import type { AccountRepository } from '../../accounts/domain';
-import type { ClientRepository } from '../../clients/domain';
-import type { TransactionRepository } from '../../transactions/domain';
+} from '../../../../common/infrastructure/repository.tokens';
+import type { AccountRepository } from '../../../accounts/domain';
+import type { ClientRepository } from '../../../clients/domain';
+import type { TransactionRepository } from '../../../transactions/domain';
 import { SearchIndexingService } from './search-indexing.service';
 
 export interface SearchReindexSummary {

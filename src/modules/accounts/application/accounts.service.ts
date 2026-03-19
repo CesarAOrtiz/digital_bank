@@ -18,8 +18,8 @@ import {
   CLIENT_REPOSITORY,
 } from '../../../common/infrastructure/repository.tokens';
 import type { ClientRepository } from '../../clients/domain';
-import { SearchIndexingService } from '../../search/application/search-indexing.service';
-import { SearchQueryService } from '../../search/application/search-query.service';
+import { SearchIndexingService } from '../../search/application/services/search-indexing.service';
+import { SearchQueryService } from '../../search/application/services/search-query.service';
 import { Account } from '../domain';
 import type { AccountRepository } from '../domain';
 import type { CreateAccountInput } from './inputs/create-account.input';
