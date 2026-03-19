@@ -86,11 +86,7 @@ services:
     volumes:
       - elastic_data:/usr/share/elasticsearch/data
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget -qO- http://localhost:9200 >/dev/null 2>&1 || exit 1"
-        ]
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200 >/dev/null || exit 1"]
       interval: 20s
       timeout: 10s
       retries: 15

@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Client as ElasticClient } from '@elastic/elasticsearch';
-import type { MappingProperty } from '@elastic/elasticsearch/lib/api/types';
+import type { estypes } from '@elastic/elasticsearch';
 import { ELASTIC_CLIENT } from '../../../common/infrastructure/elasticsearch/elasticsearch.tokens';
 import { Account } from '../../accounts/domain';
 import { Client } from '../../clients/domain';
@@ -146,7 +146,7 @@ export class SearchIndexingService implements OnModuleInit {
 
   private async ensureIndex(
     index: string,
-    properties: Record<string, MappingProperty>,
+    properties: Record<string, estypes.MappingProperty>,
   ): Promise<void> {
     const exists = await this.elastic.indices.exists({ index });
     if (exists) {
