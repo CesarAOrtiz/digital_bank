@@ -13,7 +13,7 @@ Backend bancario construido con NestJS, GraphQL y PostgreSQL para manejar client
 - búsqueda en Elasticsearch
 - health checks de PostgreSQL, Redis y Elasticsearch
 
-El API principal es GraphQL. El esquema generado se escribe automáticamente en `src/schema.gql`.
+El API principal es GraphQL. El esquema se genera automáticamente en runtime a partir de resolvers, models e inputs.
 
 ## Stack
 

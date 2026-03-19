@@ -33,7 +33,7 @@ import { RequestIdMiddleware } from './common/infrastructure/logging/request-id.
     SearchModule,
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
-      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+      autoSchemaFile: true,
       sortSchema: true,
       // graphiql: true,
       playground: true,
