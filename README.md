@@ -402,6 +402,15 @@ El costo es que puede existir desfase temporal entre datos transaccionales y res
 
 ## Manejo de Errores
 
+La aplicación centraliza el manejo de errores GraphQL mediante un `ExceptionFilter` global.
+
+La estrategia es:
+
+- excepciones de dominio y validación: se devuelven con mensaje de negocio y `extensions.code`
+- errores HTTP conocidos: conservan su status y código
+- errores inesperados: se normalizan como `INTERNAL_SERVER_ERROR` sin exponer detalles internos al cliente
+- el detalle técnico de errores inesperados queda en logs estructurados para observabilidad
+
 Las excepciones de dominio se exponen en GraphQL mediante `extensions.code`.
 
 Ejemplos:

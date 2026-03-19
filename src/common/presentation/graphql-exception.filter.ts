@@ -3,15 +3,14 @@ import {
   Catch,
   HttpException,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 import {
-  GqlArgumentsHost,
   GqlContextType,
   GqlExceptionFilter,
 } from '@nestjs/graphql';
 import { GraphQLError } from 'graphql';
+import { AppLogger } from '../infrastructure/logging/app-logger.service';
 import { getExceptionCode, getExceptionMessage } from '../domain/exceptions';
 
 @Catch()
@@ -19,7 +18,9 @@ export class GraphqlExceptionFilter
   extends BaseExceptionFilter
   implements GqlExceptionFilter
 {
-  private readonly logger = new Logger(GraphqlExceptionFilter.name);
+  constructor(private readonly appLogger: AppLogger) {
+    super();
+  }
 
   catch(exception: unknown, host: ArgumentsHost) {
     if (host.getType<GqlContextType>() !== 'graphql') {
@@ -27,22 +28,27 @@ export class GraphqlExceptionFilter
       return;
     }
 
-    GqlArgumentsHost.create(host);
-
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
     const code = getExceptionCode(exception);
-    const message = getExceptionMessage(exception);
+    const originalMessage = getExceptionMessage(exception);
+    const message =
+      status >= 500 ? 'Internal server error' : originalMessage;
 
     if (status >= 500) {
-      this.logger.error(
-        message,
-        exception instanceof Error ? exception.stack : undefined,
-      );
+      this.appLogger.error('graphql.request.failed', exception, {
+        errorCode: code,
+        httpStatus: status,
+        message: originalMessage,
+      });
     } else {
-      this.logger.warn(`${code}: ${message}`);
+      this.appLogger.warn('graphql.request.failed', {
+        errorCode: code,
+        httpStatus: status,
+        message,
+      });
     }
 
     return new GraphQLError(message, {
