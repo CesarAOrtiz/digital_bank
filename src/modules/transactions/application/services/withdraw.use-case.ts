@@ -6,6 +6,7 @@ import { Account } from '../../../accounts/domain';
 import { Transaction } from '../../domain';
 import type { FinancialTransactionContext } from '../contracts/financial-transaction-manager.contract';
 import type { WithdrawTransactionInput } from '../inputs/withdraw-transaction.input';
+import { buildWithdrawalRequestFingerprint } from './transaction-request-fingerprint';
 import { TransactionIdempotencyService } from './transaction-idempotency.service';
 import { TransactionMutationSupportService } from './transaction-mutation-support.service';
 
@@ -117,6 +118,7 @@ export class WithdrawUseCase {
       destinationAmount: null,
       exchangeRateUsed: null,
       idempotencyKey: data.idempotencyKey ?? null,
+      requestFingerprint: buildWithdrawalRequestFingerprint(data),
       description: this.transactionIdempotencyService.normalizeDescription(
         data.description,
       ),

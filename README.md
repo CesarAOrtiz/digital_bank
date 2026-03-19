@@ -186,6 +186,7 @@ La estrategia implementada es:
 
 - buscar una transacción previa de igual `type` e `idempotencyKey`
 - si existe, validar que el payload sea compatible
+- persistir un fingerprint SHA-256 del payload normalizado para reforzar la verificación
 - si coincide, devolver la transacción existente
 - si no coincide, rechazar con error de reutilización indebida
 - si dos requests compiten, la unicidad en base de datos resuelve la carrera
@@ -833,6 +834,7 @@ La suite e2e actual cubre el contrato GraphQL de los flujos más relevantes:
 - `searchClients`
 - `searchAccounts`
 - `searchTransactions`
+- fallback de `searchClients` a PostgreSQL cuando Elastic no está disponible
 
 El punto fuerte de la solución está más en las decisiones de diseño, locking, idempotencia y trazabilidad que en cobertura completa automatizada.
 
@@ -984,8 +986,7 @@ Todavía estoy ampliando algunos puntos del alcance original de la prueba:
 
 - ampliación de la suite de tests, especialmente escenarios e2e adicionales y concurrencia
 - validación y ajuste fino del flujo Docker en distintos entornos locales
-- reindexación de recuperación desde PostgreSQL cuando Elastic estuvo caído durante escrituras
-- pruebas de integración del modo degradado cuando Elastic no está disponible
+- pruebas de integración adicionales del modo degradado cuando Elastic no está disponible
 - observabilidad más explícita sobre fallos de indexación y fallback de búsquedas a PostgreSQL
 
 Hay además decisiones que sí quedaron fuera del alcance actual de esta iteración:

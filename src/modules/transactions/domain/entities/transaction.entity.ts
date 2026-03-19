@@ -1,7 +1,11 @@
 import type { TransactionProps } from '../types/transaction.props';
 
 export class Transaction {
-  constructor(private readonly props: TransactionProps) {}
+  constructor(
+    private readonly props: TransactionProps & {
+      requestFingerprint?: string | null;
+    },
+  ) {}
 
   get id(): string {
     return this.props.id;
@@ -11,7 +15,12 @@ export class Transaction {
     return this.props.createdAt;
   }
 
+  get requestFingerprint(): string | null {
+    return this.props.requestFingerprint ?? null;
+  }
+
   toPrimitives(): TransactionProps {
-    return { ...this.props };
+    const { requestFingerprint, ...publicProps } = this.props;
+    return publicProps;
   }
 }

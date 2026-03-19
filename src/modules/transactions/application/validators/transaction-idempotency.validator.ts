@@ -6,6 +6,11 @@ import { Transaction } from '../../domain';
 import type { DepositTransactionInput } from '../inputs/deposit-transaction.input';
 import type { TransferTransactionInput } from '../inputs/transfer-transaction.input';
 import type { WithdrawTransactionInput } from '../inputs/withdraw-transaction.input';
+import {
+  buildDepositRequestFingerprint,
+  buildTransferRequestFingerprint,
+  buildWithdrawalRequestFingerprint,
+} from '../services/transaction-request-fingerprint';
 
 @Injectable()
 export class TransactionIdempotencyValidator {
@@ -13,6 +18,10 @@ export class TransactionIdempotencyValidator {
     transaction: Transaction,
     data: DepositTransactionInput,
   ): void {
+    this.assertFingerprintMatches(
+      transaction,
+      buildDepositRequestFingerprint(data),
+    );
     this.assertSingleAccountTransactionMatches(transaction, {
       type: TransactionType.DEPOSIT,
       accountId: data.accountId,
@@ -26,6 +35,10 @@ export class TransactionIdempotencyValidator {
     transaction: Transaction,
     data: WithdrawTransactionInput,
   ): void {
+    this.assertFingerprintMatches(
+      transaction,
+      buildWithdrawalRequestFingerprint(data),
+    );
     this.assertSingleAccountTransactionMatches(transaction, {
       type: TransactionType.WITHDRAWAL,
       accountId: data.accountId,
@@ -39,6 +52,10 @@ export class TransactionIdempotencyValidator {
     transaction: Transaction,
     data: TransferTransactionInput,
   ): void {
+    this.assertFingerprintMatches(
+      transaction,
+      buildTransferRequestFingerprint(data),
+    );
     const existing = transaction.toPrimitives();
     if (
       existing.type !== TransactionType.TRANSFER ||
@@ -53,6 +70,18 @@ export class TransactionIdempotencyValidator {
 
   normalizeDescription(description?: string | null): string | null {
     return description?.trim() || null;
+  }
+
+  private assertFingerprintMatches(
+    transaction: Transaction,
+    expectedFingerprint: string,
+  ): void {
+    if (
+      transaction.requestFingerprint &&
+      transaction.requestFingerprint !== expectedFingerprint
+    ) {
+      throw new IdempotencyKeyReuseException();
+    }
   }
 
   private assertSingleAccountTransactionMatches(

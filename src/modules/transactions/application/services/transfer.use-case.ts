@@ -7,6 +7,7 @@ import { Account } from '../../../accounts/domain';
 import { Transaction } from '../../domain';
 import type { FinancialTransactionContext } from '../contracts/financial-transaction-manager.contract';
 import type { TransferTransactionInput } from '../inputs/transfer-transaction.input';
+import { buildTransferRequestFingerprint } from './transaction-request-fingerprint';
 import { TransactionIdempotencyService } from './transaction-idempotency.service';
 import { TransactionMutationSupportService } from './transaction-mutation-support.service';
 import { TransferSettlementService } from './transfer-settlement.service';
@@ -169,6 +170,7 @@ export class TransferUseCase {
       destinationAmount: options.destinationAmount,
       exchangeRateUsed: options.exchangeRateUsed,
       idempotencyKey: options.data.idempotencyKey ?? null,
+      requestFingerprint: buildTransferRequestFingerprint(options.data),
       description: this.transactionIdempotencyService.normalizeDescription(
         options.data.description,
       ),
