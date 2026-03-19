@@ -107,8 +107,10 @@ describe('WithdrawUseCase', () => {
     });
 
     const savedAccount = context.accountRepository.save.mock.calls[0][0] as Account;
+    const savedTransaction = context.transactionRepository.save.mock.calls[0][0] as Transaction;
     expect(savedAccount.toPrimitives().balance).toBe('60.00');
     expect(result.toPrimitives().type).toBe(TransactionType.WITHDRAWAL);
+    expect(savedTransaction.requestFingerprint).toHaveLength(64);
     expect(support.invalidateClientAccountsCaches).toHaveBeenCalledWith(['client-1']);
     expect(support.syncMutatedResources).toHaveBeenCalledWith([savedAccount], result);
     expect(support.logTransactionCompleted).toHaveBeenCalledWith(

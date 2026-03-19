@@ -7,6 +7,9 @@ export class TransactionOrmMapper {
   }
 
   static toOrm(transaction: Transaction): TransactionOrmEntity {
-    return Object.assign(new TransactionOrmEntity(), transaction.toPrimitives());
+    return Object.assign(new TransactionOrmEntity(), {
+      ...transaction.toPrimitives(),
+      requestFingerprint: transaction.requestFingerprint,
+    });
   }
 }

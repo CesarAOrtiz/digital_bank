@@ -44,6 +44,9 @@ export class TransactionOrmEntity {
   @Column({ type: 'varchar', length: 100, nullable: true })
   idempotencyKey!: string | null;
 
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  requestFingerprint!: string | null;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   description!: string | null;
 

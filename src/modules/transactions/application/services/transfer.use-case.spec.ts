@@ -191,6 +191,7 @@ describe('TransferUseCase', () => {
     const [, credited] = context.accountRepository.save.mock.calls.map(
       ([saved]) => saved as Account,
     );
+    const savedTransaction = context.transactionRepository.save.mock.calls[0][0] as Transaction;
 
     expect(transferSettlementService.calculate).toHaveBeenCalledWith(
       Currency.USD,
@@ -198,6 +199,7 @@ describe('TransferUseCase', () => {
       '10',
     );
     expect(credited.toPrimitives().balance).toBe('1605.00');
+    expect(savedTransaction.requestFingerprint).toHaveLength(64);
     expect(result.toPrimitives().destinationAmount).toBe('605.00');
     expect(result.toPrimitives().exchangeRateUsed).toBe('60.500000');
   });
