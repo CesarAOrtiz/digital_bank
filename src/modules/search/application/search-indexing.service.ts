@@ -19,6 +19,10 @@ export class SearchIndexingService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
+    await this.ensureIndices();
+  }
+
+  async ensureIndices(): Promise<void> {
     await Promise.all([
       this.ensureIndex(CLIENTS_INDEX, {
         id: { type: 'keyword' },
@@ -70,6 +74,13 @@ export class SearchIndexingService implements OnModuleInit {
         createdAt: { type: 'date' },
       }),
     ]);
+  }
+
+  async recreateIndices(): Promise<void> {
+    await this.deleteIndexIfExists(TRANSACTIONS_INDEX);
+    await this.deleteIndexIfExists(ACCOUNTS_INDEX);
+    await this.deleteIndexIfExists(CLIENTS_INDEX);
+    await this.ensureIndices();
   }
 
   async indexClient(client: Client): Promise<void> {
@@ -161,6 +172,16 @@ export class SearchIndexingService implements OnModuleInit {
     });
 
     this.logger.log(`Created Elasticsearch index ${index}.`);
+  }
+
+  private async deleteIndexIfExists(index: string): Promise<void> {
+    const exists = await this.elastic.indices.exists({ index });
+    if (!exists) {
+      return;
+    }
+
+    await this.elastic.indices.delete({ index });
+    this.logger.log(`Deleted Elasticsearch index ${index}.`);
   }
 
   private async runIndexingTask(

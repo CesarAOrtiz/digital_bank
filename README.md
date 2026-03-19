@@ -362,6 +362,22 @@ Ese tradeoff es intencional:
 
 El costo es que puede existir desfase temporal entre datos transaccionales y resultados de búsqueda hasta reintento o reindexación.
 
+### Reindexación Operativa
+
+El proyecto incluye un comando explícito para reconstruir índices de búsqueda desde PostgreSQL:
+
+```bash
+npm run search:reindex
+```
+
+Sobre el build compilado:
+
+```bash
+npm run search:reindex:prod
+```
+
+El comando recrea los índices `clients`, `accounts` y `transactions`, y luego vuelve a indexar todos los registros persistidos en PostgreSQL. Esto permite recuperar Elastic después de caídas o desincronizaciones sin comprometer la fuente de verdad transaccional.
+
 ## API GraphQL
 
 ### Mutations
@@ -424,6 +440,16 @@ Ejemplos:
 - `DUPLICATE_RESOURCE`
 
 Esto facilita manejo programático desde clientes API o frontends.
+
+## Invariantes en Base de Datos
+
+Además de las validaciones de aplicación, la base de datos refuerza invariantes críticas sobre `transactions` mediante `CHECK constraints`:
+
+- `sourceAmount > 0`
+- `destinationAmount > 0` cuando exista
+- una transferencia no puede tener la misma cuenta como origen y destino
+
+Esto complementa la lógica de dominio con una defensa mínima a nivel de persistencia.
 
 ## Logging
 
