@@ -78,6 +78,68 @@ export class SearchIndexingService implements OnModuleInit {
         `Elasticsearch unavailable during startup. Search bootstrap skipped: ${message}`,
       );
     }
+    await this.ensureIndices();
+  }
+
+  async ensureIndices(): Promise<void> {
+    await Promise.all([
+      this.ensureIndex(CLIENTS_INDEX, {
+        id: { type: 'keyword' },
+        firstName: {
+          type: 'text',
+          fields: { keyword: { type: 'keyword' } },
+        },
+        lastName: {
+          type: 'text',
+          fields: { keyword: { type: 'keyword' } },
+        },
+        fullName: {
+          type: 'text',
+          fields: { keyword: { type: 'keyword' } },
+        },
+        email: {
+          type: 'text',
+          fields: { keyword: { type: 'keyword' } },
+        },
+        documentNumber: { type: 'keyword' },
+        createdAt: { type: 'date' },
+        updatedAt: { type: 'date' },
+      }),
+      this.ensureIndex(ACCOUNTS_INDEX, {
+        id: { type: 'keyword' },
+        accountNumber: { type: 'keyword' },
+        clientId: { type: 'keyword' },
+        currency: { type: 'keyword' },
+        status: { type: 'keyword' },
+        balance: { type: 'scaled_float', scaling_factor: 100 },
+        createdAt: { type: 'date' },
+        updatedAt: { type: 'date' },
+      }),
+      this.ensureIndex(TRANSACTIONS_INDEX, {
+        id: { type: 'keyword' },
+        type: { type: 'keyword' },
+        sourceAccountId: { type: 'keyword' },
+        destinationAccountId: { type: 'keyword' },
+        sourceCurrency: { type: 'keyword' },
+        destinationCurrency: { type: 'keyword' },
+        sourceAmount: { type: 'scaled_float', scaling_factor: 100 },
+        destinationAmount: { type: 'scaled_float', scaling_factor: 100 },
+        description: {
+          type: 'text',
+          fields: { keyword: { type: 'keyword' } },
+        },
+        exchangeRateUsed: { type: 'keyword' },
+        idempotencyKey: { type: 'keyword' },
+        createdAt: { type: 'date' },
+      }),
+    ]);
+  }
+
+  async recreateIndices(): Promise<void> {
+    await this.deleteIndexIfExists(TRANSACTIONS_INDEX);
+    await this.deleteIndexIfExists(ACCOUNTS_INDEX);
+    await this.deleteIndexIfExists(CLIENTS_INDEX);
+    await this.ensureIndices();
   }
 
   async indexClient(client: Client): Promise<void> {
@@ -169,6 +231,16 @@ export class SearchIndexingService implements OnModuleInit {
     });
 
     this.logger.log(`Created Elasticsearch index ${index}.`);
+  }
+
+  private async deleteIndexIfExists(index: string): Promise<void> {
+    const exists = await this.elastic.indices.exists({ index });
+    if (!exists) {
+      return;
+    }
+
+    await this.elastic.indices.delete({ index });
+    this.logger.log(`Deleted Elasticsearch index ${index}.`);
   }
 
   private async runIndexingTask(

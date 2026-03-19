@@ -1,4 +1,5 @@
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { PaginationInput } from '../../../../common/presentation/inputs/pagination.input';
 import { TransactionsService } from '../../application/services/transactions.service';
 import { DepositInput } from '../inputs/deposit.input';
 import { SearchTransactionsInput } from '../inputs/search-transactions.input';
@@ -36,8 +37,13 @@ export class TransactionsResolver {
   }
 
   @Query(() => [TransactionGraphqlModel], { name: 'transactions' })
-  async findTransactions(): Promise<TransactionGraphqlModel[]> {
-    const transactions = await this.transactionsService.findAll();
+  async findTransactions(
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
+  ): Promise<TransactionGraphqlModel[]> {
+    const transactions = await this.transactionsService.findAll(
+      pagination?.limit,
+      pagination?.offset,
+    );
     return transactions.map(TransactionGraphqlMapper.toModel);
   }
 
@@ -52,8 +58,13 @@ export class TransactionsResolver {
   @Query(() => [TransactionGraphqlModel], { name: 'searchTransactions' })
   async searchTransactions(
     @Args('filters', { nullable: true }) filters?: SearchTransactionsInput,
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
   ) {
-    const transactions = await this.transactionsService.search(filters ?? {});
+    const transactions = await this.transactionsService.search(
+      filters ?? {},
+      pagination?.limit,
+      pagination?.offset,
+    );
     return transactions.map(TransactionGraphqlMapper.toModel);
   }
 }

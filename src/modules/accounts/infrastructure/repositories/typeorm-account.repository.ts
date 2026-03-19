@@ -37,9 +37,32 @@ export class TypeOrmAccountRepository implements AccountRepository {
     );
   }
 
-  async findAll(): Promise<Account[]> {
+  async findAll(limit?: number, offset?: number): Promise<Account[]> {
     const repository = await this.getRepository();
-    return (await repository.find()).map(AccountOrmMapper.toDomain);
+    return (
+      await repository.find({
+        order: { createdAt: 'DESC', id: 'DESC' },
+        ...(limit !== undefined ? { take: limit } : {}),
+        ...(offset !== undefined ? { skip: offset } : {}),
+      })
+    ).map(AccountOrmMapper.toDomain);
+  }
+
+  async findPageAfterId(
+    lastId: string | null,
+    limit: number,
+  ): Promise<Account[]> {
+    const repository = await this.getRepository();
+    const query = repository
+      .createQueryBuilder('account')
+      .orderBy('account.id', 'ASC')
+      .take(limit);
+
+    if (lastId) {
+      query.where('account.id > :lastId', { lastId });
+    }
+
+    return (await query.getMany()).map(AccountOrmMapper.toDomain);
   }
 
   async findById(id: string): Promise<Account | null> {
@@ -54,12 +77,18 @@ export class TypeOrmAccountRepository implements AccountRepository {
     return entity ? AccountOrmMapper.toDomain(entity) : null;
   }
 
-  async findByClientId(clientId: string): Promise<Account[]> {
+  async findByClientId(
+    clientId: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<Account[]> {
     const repository = await this.getRepository();
     return (
       await repository.find({
         where: { clientId },
-        order: { createdAt: 'DESC' },
+        order: { createdAt: 'DESC', id: 'DESC' },
+        ...(limit !== undefined ? { take: limit } : {}),
+        ...(offset !== undefined ? { skip: offset } : {}),
       })
     ).map(AccountOrmMapper.toDomain);
   }

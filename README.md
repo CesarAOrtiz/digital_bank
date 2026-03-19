@@ -386,6 +386,22 @@ El tradeoff es explícito:
 - Elastic aporta mejor experiencia de búsqueda, pero no define la disponibilidad del sistema
 - los resultados del fallback pueden no tener el mismo ranking o flexibilidad textual que Elastic
 
+### Reindexación Operativa
+
+El proyecto incluye un comando explícito para reconstruir índices de búsqueda desde PostgreSQL:
+
+```bash
+npm run search:reindex
+```
+
+Sobre el build compilado:
+
+```bash
+npm run search:reindex:prod
+```
+
+El comando asegura que existan los índices `clients`, `accounts` y `transactions`, y luego vuelve a indexar todos los registros persistidos en PostgreSQL por id. La reconstrucción se procesa por lotes usando un cursor simple por `id`, para no cargar toda la data en memoria de una vez. Esto permite recuperar Elastic después de caídas o desincronizaciones sin vaciar los índices durante el proceso y sin comprometer la fuente de verdad transaccional.
+
 ## API GraphQL
 
 ### Mutations
@@ -412,6 +428,25 @@ El tradeoff es explícito:
 - `searchClients(term)`
 - `searchAccounts(term)`
 - `searchTransactions(filters)`
+
+### Paginación
+
+Las lecturas masivas aceptan `pagination` con `limit` y `offset`:
+
+- `clients`
+- `accounts`
+- `accountsByClient`
+- `transactions`
+- `searchClients`
+- `searchAccounts`
+- `searchTransactions`
+
+Defaults:
+
+- `limit`: `25`
+- `offset`: `0`
+
+El límite máximo por request es `100`.
 
 ### Filtros de `searchTransactions`
 
@@ -448,6 +483,16 @@ Ejemplos:
 - `DUPLICATE_RESOURCE`
 
 Esto facilita manejo programático desde clientes API o frontends.
+
+## Invariantes en Base de Datos
+
+Además de las validaciones de aplicación, la base de datos refuerza invariantes críticas sobre `transactions` mediante `CHECK constraints`:
+
+- `sourceAmount > 0`
+- `destinationAmount > 0` cuando exista
+- una transferencia no puede tener la misma cuenta como origen y destino
+
+Esto complementa la lógica de dominio con una defensa mínima a nivel de persistencia.
 
 ## Logging
 
@@ -898,12 +943,26 @@ query {
       dateFrom: "2026-01-01T00:00:00.000Z"
       text: "international"
     }
+    pagination: { limit: 20, offset: 0 }
   ) {
     id
     type
     sourceAmount
     destinationAmount
     createdAt
+  }
+}
+```
+
+### Búsqueda de clientes paginada
+
+```graphql
+query {
+  searchClients(term: "ada", pagination: { limit: 10, offset: 0 }) {
+    id
+    firstName
+    lastName
+    email
   }
 }
 ```

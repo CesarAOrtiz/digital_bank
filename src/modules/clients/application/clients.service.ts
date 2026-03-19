@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { normalizePagination } from '../../../common/application/pagination';
 import {
   DuplicateClientException,
   ResourceNotFoundException,
@@ -57,12 +58,14 @@ export class ClientsService {
     return client;
   }
 
-  findAll(): Promise<Client[]> {
-    return this.clientRepository.findAll();
+  findAll(limit?: number, offset?: number): Promise<Client[]> {
+    const page = normalizePagination({ limit, offset });
+    return this.clientRepository.findAll(page.limit, page.offset);
   }
 
-  search(term: string): Promise<Client[]> {
-    return this.searchQueryService.searchClients(term);
+  search(term: string, limit?: number, offset?: number): Promise<Client[]> {
+    const page = normalizePagination({ limit, offset });
+    return this.searchQueryService.searchClients(term, page.limit, page.offset);
   }
 
   async findOne(id: string): Promise<Client> {

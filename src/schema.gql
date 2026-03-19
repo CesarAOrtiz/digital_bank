@@ -86,20 +86,25 @@ type Mutation {
   withdraw(input: WithdrawalInput!): Transaction!
 }
 
+input PaginationInput {
+  limit: Int = 25
+  offset: Int = 0
+}
+
 type Query {
   account(id: ID!): Account!
   accountByAccountNumber(accountNumber: String!): Account!
-  accounts: [Account!]!
-  accountsByClient(clientId: ID!): [Account!]!
+  accounts(pagination: PaginationInput): [Account!]!
+  accountsByClient(clientId: ID!, pagination: PaginationInput): [Account!]!
   client(id: ID!): Client!
-  clients: [Client!]!
+  clients(pagination: PaginationInput): [Client!]!
   exchangeRate(baseCurrency: Currency!, targetCurrency: Currency!): ExchangeRate!
   exchangeRates: [ExchangeRate!]!
-  searchAccounts(term: String!): [Account!]!
-  searchClients(term: String!): [Client!]!
-  searchTransactions(filters: SearchTransactionsInput): [Transaction!]!
+  searchAccounts(pagination: PaginationInput, term: String!): [Account!]!
+  searchClients(pagination: PaginationInput, term: String!): [Client!]!
+  searchTransactions(filters: SearchTransactionsInput, pagination: PaginationInput): [Transaction!]!
   transaction(id: ID!): Transaction!
-  transactions: [Transaction!]!
+  transactions(pagination: PaginationInput): [Transaction!]!
 }
 
 input SearchTransactionsInput {

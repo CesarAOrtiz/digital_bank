@@ -28,12 +28,16 @@ export class TransactionsService {
     return this.transactionWriteService.transfer(data);
   }
 
-  findAll(): Promise<Transaction[]> {
-    return this.transactionReadService.findAll();
+  findAll(limit?: number, offset?: number): Promise<Transaction[]> {
+    return this.transactionReadService.findAll(limit, offset);
   }
 
-  search(filters: TransactionSearchFilters): Promise<Transaction[]> {
-    return this.searchQueryService.searchTransactions(filters);
+  search(
+    filters: TransactionSearchFilters,
+    limit?: number,
+    offset?: number,
+  ): Promise<Transaction[]> {
+    return this.searchQueryService.searchTransactions(filters, limit, offset);
   }
 
   findOne(id: string): Promise<Transaction> {

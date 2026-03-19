@@ -1,4 +1,5 @@
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { PaginationInput } from '../../../../common/presentation/inputs/pagination.input';
 import { AccountsService } from '../../application/accounts.service';
 import { CreateAccountInput } from '../inputs/create-account.input';
 import { AccountGraphqlMapper } from '../mappers/account-graphql.mapper';
@@ -17,8 +18,13 @@ export class AccountsResolver {
   }
 
   @Query(() => [AccountGraphqlModel], { name: 'accounts' })
-  async findAccounts(): Promise<AccountGraphqlModel[]> {
-    const accounts = await this.accountsService.findAll();
+  async findAccounts(
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
+  ): Promise<AccountGraphqlModel[]> {
+    const accounts = await this.accountsService.findAll(
+      pagination?.limit,
+      pagination?.offset,
+    );
     return accounts.map(AccountGraphqlMapper.toModel);
   }
 
@@ -42,16 +48,26 @@ export class AccountsResolver {
   @Query(() => [AccountGraphqlModel], { name: 'accountsByClient' })
   async findAccountsByClient(
     @Args('clientId', { type: () => ID }) clientId: string,
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
   ): Promise<AccountGraphqlModel[]> {
-    const accounts = await this.accountsService.findByClient(clientId);
+    const accounts = await this.accountsService.findByClient(
+      clientId,
+      pagination?.limit,
+      pagination?.offset,
+    );
     return accounts.map(AccountGraphqlMapper.toModel);
   }
 
   @Query(() => [AccountGraphqlModel], { name: 'searchAccounts' })
   async searchAccounts(
     @Args('term') term: string,
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
   ): Promise<AccountGraphqlModel[]> {
-    const accounts = await this.accountsService.search(term);
+    const accounts = await this.accountsService.search(
+      term,
+      pagination?.limit,
+      pagination?.offset,
+    );
     return accounts.map(AccountGraphqlMapper.toModel);
   }
 }

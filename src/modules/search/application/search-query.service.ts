@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Client as ElasticClient } from '@elastic/elasticsearch';
 import {
+  NormalizedPagination,
+  normalizePagination,
+} from '../../../common/application/pagination';
+import {
   AccountStatus,
   Currency,
   TransactionType,
@@ -76,23 +80,38 @@ export class SearchQueryService {
     private readonly appLogger: AppLogger,
   ) {}
 
-  async searchClients(term: string): Promise<Client[]> {
+  async searchClients(
+    term: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<Client[]> {
     const normalizedTerm = term.trim();
     if (!normalizedTerm) {
       return [];
     }
-    const startedAt = Date.now();
 
+    const startedAt = Date.now();
+    const page = normalizePagination({ limit, offset });
     const clients = await this.runWithFallback(
       'clients',
-      () => this.searchClientsInElastic(normalizedTerm),
-      () => this.clientRepository.search(normalizedTerm),
-      { term: normalizedTerm },
+      () => this.searchClientsInElastic(normalizedTerm, page),
+      async () =>
+        this.paginateResults(
+          await this.clientRepository.search(normalizedTerm),
+          page,
+        ),
+      {
+        term: normalizedTerm,
+        offset: page.offset,
+        limit: page.limit,
+      },
     );
 
     this.appLogger.log('search.clients.executed', {
       index: CLIENTS_INDEX,
       term: normalizedTerm,
+      offset: page.offset,
+      limit: page.limit,
       resultCount: clients.length,
       durationMs: Date.now() - startedAt,
     });
@@ -100,23 +119,38 @@ export class SearchQueryService {
     return clients;
   }
 
-  async searchAccounts(term: string): Promise<Account[]> {
+  async searchAccounts(
+    term: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<Account[]> {
     const normalizedTerm = term.trim();
     if (!normalizedTerm) {
       return [];
     }
-    const startedAt = Date.now();
 
+    const startedAt = Date.now();
+    const page = normalizePagination({ limit, offset });
     const accounts = await this.runWithFallback(
       'accounts',
-      () => this.searchAccountsInElastic(normalizedTerm),
-      () => this.accountRepository.search(normalizedTerm),
-      { term: normalizedTerm },
+      () => this.searchAccountsInElastic(normalizedTerm, page),
+      async () =>
+        this.paginateResults(
+          await this.accountRepository.search(normalizedTerm),
+          page,
+        ),
+      {
+        term: normalizedTerm,
+        offset: page.offset,
+        limit: page.limit,
+      },
     );
 
     this.appLogger.log('search.accounts.executed', {
       index: ACCOUNTS_INDEX,
       term: normalizedTerm,
+      offset: page.offset,
+      limit: page.limit,
       resultCount: accounts.length,
       durationMs: Date.now() - startedAt,
     });
@@ -126,8 +160,11 @@ export class SearchQueryService {
 
   async searchTransactions(
     filters: TransactionSearchFilters,
+    limit?: number,
+    offset?: number,
   ): Promise<Transaction[]> {
     const startedAt = Date.now();
+    const page = normalizePagination({ limit, offset, defaultLimit: 50 });
     const must: object[] = [];
     const filter: object[] = [];
 
@@ -217,39 +254,33 @@ export class SearchQueryService {
       });
     }
 
+    const metadata = {
+      text: filters.text?.trim() || undefined,
+      type: filters.type,
+      accountId: filters.accountId,
+      sourceAccountId: filters.sourceAccountId,
+      destinationAccountId: filters.destinationAccountId,
+      currency: filters.currency,
+      dateFrom: filters.dateFrom?.toISOString(),
+      dateTo: filters.dateTo?.toISOString(),
+      offset: page.offset,
+      limit: page.limit,
+    };
+
     const transactions = await this.runWithFallback(
       'transactions',
-      () =>
-        this.searchTransactionsInElastic({
-          filters,
-          must,
-          filter,
-        }),
-      () => this.transactionRepository.search(filters),
-      {
-        text: filters.text?.trim() || undefined,
-        type: filters.type,
-        accountId: filters.accountId,
-        sourceAccountId: filters.sourceAccountId,
-        destinationAccountId: filters.destinationAccountId,
-        currency: filters.currency,
-        dateFrom: filters.dateFrom?.toISOString(),
-        dateTo: filters.dateTo?.toISOString(),
-      },
+      () => this.searchTransactionsInElastic({ must, filter, page }),
+      async () =>
+        this.paginateResults(
+          await this.transactionRepository.search(filters),
+          page,
+        ),
+      metadata,
     );
 
     this.appLogger.log('search.transactions.executed', {
       index: TRANSACTIONS_INDEX,
-      filters: {
-        text: filters.text?.trim() || undefined,
-        type: filters.type,
-        accountId: filters.accountId,
-        sourceAccountId: filters.sourceAccountId,
-        destinationAccountId: filters.destinationAccountId,
-        currency: filters.currency,
-        dateFrom: filters.dateFrom?.toISOString(),
-        dateTo: filters.dateTo?.toISOString(),
-      },
+      filters: metadata,
       resultCount: transactions.length,
       durationMs: Date.now() - startedAt,
     });
@@ -257,7 +288,10 @@ export class SearchQueryService {
     return transactions;
   }
 
-  private async searchClientsInElastic(term: string): Promise<Client[]> {
+  private async searchClientsInElastic(
+    term: string,
+    page: NormalizedPagination,
+  ): Promise<Client[]> {
     const response = await this.elastic.search<ClientSearchDocument>({
       index: CLIENTS_INDEX,
       query: {
@@ -291,7 +325,8 @@ export class SearchQueryService {
         },
       },
       sort: [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }],
-      size: 25,
+      from: page.offset,
+      size: page.limit,
     });
 
     return response.hits.hits
@@ -311,7 +346,10 @@ export class SearchQueryService {
       );
   }
 
-  private async searchAccountsInElastic(term: string): Promise<Account[]> {
+  private async searchAccountsInElastic(
+    term: string,
+    page: NormalizedPagination,
+  ): Promise<Account[]> {
     const response = await this.elastic.search<AccountSearchDocument>({
       index: ACCOUNTS_INDEX,
       query: {
@@ -338,7 +376,8 @@ export class SearchQueryService {
         },
       },
       sort: [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }],
-      size: 25,
+      from: page.offset,
+      size: page.limit,
     });
 
     return response.hits.hits
@@ -360,9 +399,9 @@ export class SearchQueryService {
   }
 
   private async searchTransactionsInElastic(options: {
-    filters: TransactionSearchFilters;
     must: object[];
     filter: object[];
+    page: NormalizedPagination;
   }): Promise<Transaction[]> {
     const response = await this.elastic.search<TransactionSearchDocument>({
       index: TRANSACTIONS_INDEX,
@@ -375,7 +414,8 @@ export class SearchQueryService {
       sort: options.must.length
         ? [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }]
         : [{ createdAt: { order: 'desc' } }],
-      size: 50,
+      from: options.page.offset,
+      size: options.page.limit,
     });
 
     return response.hits.hits
@@ -401,6 +441,17 @@ export class SearchQueryService {
             createdAt: new Date(doc.createdAt),
           }),
       );
+  }
+
+  private paginateResults<T>(
+    items: T[],
+    page: NormalizedPagination,
+  ): T[] {
+    if (page.offset === 0 && page.limit >= items.length) {
+      return items;
+    }
+
+    return items.slice(page.offset, page.offset + page.limit);
   }
 
   private async runWithFallback<T>(

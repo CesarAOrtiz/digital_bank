@@ -31,6 +31,8 @@
     "migration:run:dev": "npm run typeorm -- migration:run",
     "migration:revert:dev": "npm run typeorm -- migration:revert",
     "migration:show:dev": "npm run typeorm -- migration:show",
+    "search:reindex": "node -r ts-node/register -r tsconfig-paths/register src/search/run-reindex.ts",
+    "search:reindex:prod": "node dist/search/run-reindex.js",
     "seed": "node -r ts-node/register -r tsconfig-paths/register src/seeds/run-seeds.ts",
     "seed:reset": "node -r ts-node/register -r tsconfig-paths/register src/seeds/run-seeds.ts --reset",
     "seed:purge": "node -r ts-node/register -r tsconfig-paths/register src/seeds/run-seeds.ts --purge",

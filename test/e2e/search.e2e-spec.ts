@@ -51,8 +51,8 @@ describe('Search GraphQL (e2e)', () => {
       .post('/graphql')
       .send({
         query: `
-          query SearchClients($term: String!) {
-            searchClients(term: $term) {
+          query SearchClients($term: String!, $pagination: PaginationInput) {
+            searchClients(term: $term, pagination: $pagination) {
               id
               firstName
               lastName
@@ -63,6 +63,10 @@ describe('Search GraphQL (e2e)', () => {
         `,
         variables: {
           term: 'ada',
+          pagination: {
+            limit: 10,
+            offset: 5,
+          },
         },
       })
       .expect(200);
@@ -77,7 +81,7 @@ describe('Search GraphQL (e2e)', () => {
         documentNumber: 'DOC-1',
       },
     ]);
-    expect(clientsService.search).toHaveBeenCalledWith('ada');
+    expect(clientsService.search).toHaveBeenCalledWith('ada', 10, 5);
   });
 
   it('searchAccounts debe devolver cuentas mapeadas', async () => {
@@ -98,8 +102,8 @@ describe('Search GraphQL (e2e)', () => {
       .post('/graphql')
       .send({
         query: `
-          query SearchAccounts($term: String!) {
-            searchAccounts(term: $term) {
+          query SearchAccounts($term: String!, $pagination: PaginationInput) {
+            searchAccounts(term: $term, pagination: $pagination) {
               id
               accountNumber
               clientId
@@ -111,6 +115,10 @@ describe('Search GraphQL (e2e)', () => {
         `,
         variables: {
           term: 'ACC',
+          pagination: {
+            limit: 15,
+            offset: 10,
+          },
         },
       })
       .expect(200);
@@ -126,7 +134,7 @@ describe('Search GraphQL (e2e)', () => {
         status: 'ACTIVE',
       },
     ]);
-    expect(accountsService.search).toHaveBeenCalledWith('ACC');
+    expect(accountsService.search).toHaveBeenCalledWith('ACC', 15, 10);
   });
 
   it('searchTransactions debe devolver transacciones mapeadas', async () => {
@@ -151,8 +159,8 @@ describe('Search GraphQL (e2e)', () => {
       .post('/graphql')
       .send({
         query: `
-          query SearchTransactions($filters: SearchTransactionsInput) {
-            searchTransactions(filters: $filters) {
+          query SearchTransactions($filters: SearchTransactionsInput, $pagination: PaginationInput) {
+            searchTransactions(filters: $filters, pagination: $pagination) {
               id
               type
               sourceAccountId
@@ -174,6 +182,10 @@ describe('Search GraphQL (e2e)', () => {
             currency: 'DOP',
             text: 'international',
           },
+          pagination: {
+            limit: 20,
+            offset: 40,
+          },
         },
       })
       .expect(200);
@@ -194,11 +206,15 @@ describe('Search GraphQL (e2e)', () => {
         description: 'international',
       },
     ]);
-    expect(transactionsService.search).toHaveBeenCalledWith({
-      type: 'TRANSFER',
-      sourceAccountId: '44444444-4444-4444-8444-444444444444',
-      currency: 'DOP',
-      text: 'international',
-    });
+    expect(transactionsService.search).toHaveBeenCalledWith(
+      {
+        type: 'TRANSFER',
+        sourceAccountId: '44444444-4444-4444-8444-444444444444',
+        currency: 'DOP',
+        text: 'international',
+      },
+      20,
+      40,
+    );
   });
 });

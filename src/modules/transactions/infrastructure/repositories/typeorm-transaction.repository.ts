@@ -28,15 +28,35 @@ export class TypeOrmTransactionRepository implements TransactionRepository {
     );
   }
 
-  async findAll(): Promise<Transaction[]> {
+  async findAll(limit?: number, offset?: number): Promise<Transaction[]> {
     const repository = await this.getRepository();
     return (
       await repository.find({
         order: {
           createdAt: 'DESC',
+          id: 'DESC',
         },
+        ...(limit !== undefined ? { take: limit } : {}),
+        ...(offset !== undefined ? { skip: offset } : {}),
       })
     ).map(TransactionOrmMapper.toDomain);
+  }
+
+  async findPageAfterId(
+    lastId: string | null,
+    limit: number,
+  ): Promise<Transaction[]> {
+    const repository = await this.getRepository();
+    const query = repository
+      .createQueryBuilder('transaction')
+      .orderBy('transaction.id', 'ASC')
+      .take(limit);
+
+    if (lastId) {
+      query.where('transaction.id > :lastId', { lastId });
+    }
+
+    return (await query.getMany()).map(TransactionOrmMapper.toDomain);
   }
 
   async findById(id: string): Promise<Transaction | null> {
