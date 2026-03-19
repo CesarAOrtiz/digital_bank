@@ -1,8 +1,6 @@
 # Digital Bank
 
-Backend bancario construido con NestJS, GraphQL y PostgreSQL para manejar clientes, cuentas, tasas de cambio y transacciones financieras con foco en consistencia, concurrencia e idempotencia.
-
-El proyecto está diseñado como una prueba técnica senior: prioriza decisiones defendibles de arquitectura antes que volumen de features. PostgreSQL es la fuente de verdad operativa; Redis se usa como optimización de lectura; Elasticsearch se usa como índice de búsqueda.
+Backend bancario construido con NestJS, GraphQL y PostgreSQL para manejar clientes, cuentas, tasas de cambio y transacciones financieras. Prioriza decisiones defendibles de arquitectura antes que volumen de features. PostgreSQL es la fuente de verdad operativa; Redis se usa como optimización de lectura; Elasticsearch se usa como índice de búsqueda.
 
 ## Qué Resuelve
 
@@ -30,13 +28,13 @@ El API principal es GraphQL. El esquema generado se escribe automáticamente en 
 
 ## Decisiones de Diseño
 
-- PostgreSQL es la fuente de verdad para balances, transacciones, idempotencia y concurrencia.
+- PostgreSQL es la fuente de verdad para balances, transacciones e idempotencia.
 - Redis se usa solo como cache de lecturas frecuentes; no participa en consistencia financiera.
 - Elasticsearch resuelve búsquedas avanzadas sobre clientes, cuentas y transacciones sin desplazar a PostgreSQL.
 - Las operaciones financieras usan transacciones de base de datos, locking pesimista y orden estable de bloqueo para reducir carreras y deadlocks.
 - La idempotencia se apoya en persistencia real y validación de payload, no en memoria o cache.
 - Los montos y tasas se calculan con `decimal.js` y redondeo bancario explícito `ROUND_HALF_EVEN`.
-- Docker desacopla arranque de aplicación, migraciones y seeds para evitar efectos secundarios operativos.
+- Docker separa arranque de aplicación, migraciones y seeds para evitar efectos secundarios operativos.
 - La observabilidad se apoya en logs estructurados JSON con `requestId`, contexto de negocio y eventos consistentes.
 
 ## Arquitectura
@@ -158,7 +156,7 @@ Tipos:
 
 ### PostgreSQL Como Fuente de Verdad
 
-Toda decisión financiera sale de PostgreSQL, no de Redis ni de Elasticsearch.
+Toda decisión financiera sale de PostgreSQL.
 
 Eso incluye:
 
