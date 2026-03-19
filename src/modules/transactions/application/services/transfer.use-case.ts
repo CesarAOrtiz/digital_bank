@@ -5,6 +5,7 @@ import { Currency, TransactionType } from '../../../../common/domain/enums';
 import { DomainRuleViolationException } from '../../../../common/domain/exceptions';
 import { Account } from '../../../accounts/domain';
 import { Transaction } from '../../domain';
+import type { FinancialTransactionContext } from '../contracts/financial-transaction-manager.contract';
 import type { TransferTransactionInput } from '../inputs/transfer-transaction.input';
 import { TransactionIdempotencyService } from './transaction-idempotency.service';
 import { TransactionMutationSupportService } from './transaction-mutation-support.service';
@@ -47,74 +48,78 @@ export class TransferUseCase {
     let didMutate = false;
 
     try {
+      const options = {
+        operationName: 'transfer',
+        lockAccountIds: [data.sourceAccountId, data.destinationAccountId],
+        type: TransactionType.TRANSFER,
+        idempotencyKey: data.idempotencyKey,
+      };
+      const assertMatches = (existing: Transaction) =>
+        this.transactionIdempotencyService.assertTransferMatches(existing, data);
+      const mutation = async ({
+        accountRepository,
+        transactionRepository,
+      }: FinancialTransactionContext) => {
+        const existing =
+          await this.transactionIdempotencyService.findExistingTransaction(
+            transactionRepository,
+            data.idempotencyKey,
+            TransactionType.TRANSFER,
+          );
+        if (existing) {
+          assertMatches(existing);
+          return existing;
+        }
+
+        const sourceAccount = await this.support.requireAccount(
+          accountRepository,
+          data.sourceAccountId,
+        );
+        const destinationAccount = await this.support.requireAccount(
+          accountRepository,
+          data.destinationAccountId,
+        );
+
+        const sourceCurrency = sourceAccount.toPrimitives().currency;
+        const destinationCurrency = destinationAccount.toPrimitives().currency;
+        const debitedSource = sourceAccount.withdraw(data.amount);
+        const settlement = await this.transferSettlementService.calculate(
+          sourceCurrency,
+          destinationCurrency,
+          data.amount,
+        );
+        const creditedDestination = destinationAccount.deposit(
+          settlement.destinationAmount,
+        );
+
+        await accountRepository.save(debitedSource);
+        await accountRepository.save(creditedDestination);
+        affectedClientIds = [
+          sourceAccount.toPrimitives().clientId,
+          destinationAccount.toPrimitives().clientId,
+        ];
+        affectedAccounts = [debitedSource, creditedDestination];
+
+        const savedTransaction = await transactionRepository.save(
+          this.buildTransferTransaction({
+            sourceAccount: debitedSource,
+            destinationAccount: creditedDestination,
+            sourceCurrency,
+            destinationCurrency,
+            destinationAmount: settlement.destinationAmount,
+            exchangeRateUsed: settlement.exchangeRateUsed,
+            data,
+          }),
+        );
+        didMutate = true;
+        return savedTransaction;
+      };
+
       const transaction =
         await this.transactionIdempotencyService.executeIdempotentTransaction(
-          {
-            operationName: 'transfer',
-            lockAccountIds: [data.sourceAccountId, data.destinationAccountId],
-            type: TransactionType.TRANSFER,
-            idempotencyKey: data.idempotencyKey,
-          },
-          async ({ accountRepository, transactionRepository }) => {
-            const existing =
-              await this.transactionIdempotencyService.findExistingTransaction(
-                transactionRepository,
-                data.idempotencyKey,
-                TransactionType.TRANSFER,
-              );
-            if (existing) {
-              this.transactionIdempotencyService.assertTransferMatches(
-                existing,
-                data,
-              );
-              return existing;
-            }
-
-            const sourceAccount = await this.support.requireAccount(
-              accountRepository,
-              data.sourceAccountId,
-            );
-            const destinationAccount = await this.support.requireAccount(
-              accountRepository,
-              data.destinationAccountId,
-            );
-
-            const sourceCurrency = sourceAccount.toPrimitives().currency;
-            const destinationCurrency = destinationAccount.toPrimitives().currency;
-            const debitedSource = sourceAccount.withdraw(data.amount);
-            const settlement = await this.transferSettlementService.calculate(
-              sourceCurrency,
-              destinationCurrency,
-              data.amount,
-            );
-            const creditedDestination = destinationAccount.deposit(
-              settlement.destinationAmount,
-            );
-
-            await accountRepository.save(debitedSource);
-            await accountRepository.save(creditedDestination);
-            affectedClientIds = [
-              sourceAccount.toPrimitives().clientId,
-              destinationAccount.toPrimitives().clientId,
-            ];
-            affectedAccounts = [debitedSource, creditedDestination];
-
-            const savedTransaction = await transactionRepository.save(
-              this.buildTransferTransaction({
-                sourceAccount: debitedSource,
-                destinationAccount: creditedDestination,
-                sourceCurrency,
-                destinationCurrency,
-                destinationAmount: settlement.destinationAmount,
-                exchangeRateUsed: settlement.exchangeRateUsed,
-                data,
-              }),
-            );
-            didMutate = true;
-            return savedTransaction;
-          },
-          (existing) =>
-            this.transactionIdempotencyService.assertTransferMatches(existing, data),
+          options,
+          mutation,
+          assertMatches,
         );
 
       if (didMutate) {

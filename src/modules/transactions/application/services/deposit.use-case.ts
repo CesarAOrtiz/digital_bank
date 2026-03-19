@@ -4,6 +4,7 @@ import { formatMoney } from '../../../../common/application/money';
 import { TransactionType } from '../../../../common/domain/enums';
 import { Account } from '../../../accounts/domain';
 import { Transaction } from '../../domain';
+import type { FinancialTransactionContext } from '../contracts/financial-transaction-manager.contract';
 import type { DepositTransactionInput } from '../inputs/deposit-transaction.input';
 import { TransactionIdempotencyService } from './transaction-idempotency.service';
 import { TransactionMutationSupportService } from './transaction-mutation-support.service';
@@ -26,46 +27,50 @@ export class DepositUseCase {
     let didMutate = false;
 
     try {
+      const options = {
+        operationName: 'deposit',
+        lockAccountIds: [data.accountId],
+        type: TransactionType.DEPOSIT,
+        idempotencyKey: data.idempotencyKey,
+      };
+      const assertMatches = (existing: Transaction) =>
+        this.transactionIdempotencyService.assertDepositMatches(existing, data);
+      const mutation = async ({
+        accountRepository,
+        transactionRepository,
+      }: FinancialTransactionContext) => {
+        const existing =
+          await this.transactionIdempotencyService.findExistingTransaction(
+            transactionRepository,
+            data.idempotencyKey,
+            TransactionType.DEPOSIT,
+          );
+        if (existing) {
+          assertMatches(existing);
+          return existing;
+        }
+
+        const account = await this.support.requireAccount(
+          accountRepository,
+          data.accountId,
+        );
+        const updatedAccount = account.deposit(data.amount);
+        await accountRepository.save(updatedAccount);
+        affectedClientIds = [updatedAccount.toPrimitives().clientId];
+        affectedAccounts = [updatedAccount];
+
+        const savedTransaction = await transactionRepository.save(
+          this.buildDepositTransaction(updatedAccount, data),
+        );
+        didMutate = true;
+        return savedTransaction;
+      };
+
       const transaction =
         await this.transactionIdempotencyService.executeIdempotentTransaction(
-          {
-            operationName: 'deposit',
-            lockAccountIds: [data.accountId],
-            type: TransactionType.DEPOSIT,
-            idempotencyKey: data.idempotencyKey,
-          },
-          async ({ accountRepository, transactionRepository }) => {
-            const existing =
-              await this.transactionIdempotencyService.findExistingTransaction(
-                transactionRepository,
-                data.idempotencyKey,
-                TransactionType.DEPOSIT,
-              );
-            if (existing) {
-              this.transactionIdempotencyService.assertDepositMatches(
-                existing,
-                data,
-              );
-              return existing;
-            }
-
-            const account = await this.support.requireAccount(
-              accountRepository,
-              data.accountId,
-            );
-            const updatedAccount = account.deposit(data.amount);
-            await accountRepository.save(updatedAccount);
-            affectedClientIds = [updatedAccount.toPrimitives().clientId];
-            affectedAccounts = [updatedAccount];
-
-            const savedTransaction = await transactionRepository.save(
-              this.buildDepositTransaction(updatedAccount, data),
-            );
-            didMutate = true;
-            return savedTransaction;
-          },
-          (existing) =>
-            this.transactionIdempotencyService.assertDepositMatches(existing, data),
+          options,
+          mutation,
+          assertMatches,
         );
 
       if (didMutate) {

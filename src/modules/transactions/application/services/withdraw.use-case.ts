@@ -4,6 +4,7 @@ import { formatMoney } from '../../../../common/application/money';
 import { TransactionType } from '../../../../common/domain/enums';
 import { Account } from '../../../accounts/domain';
 import { Transaction } from '../../domain';
+import type { FinancialTransactionContext } from '../contracts/financial-transaction-manager.contract';
 import type { WithdrawTransactionInput } from '../inputs/withdraw-transaction.input';
 import { TransactionIdempotencyService } from './transaction-idempotency.service';
 import { TransactionMutationSupportService } from './transaction-mutation-support.service';
@@ -26,49 +27,53 @@ export class WithdrawUseCase {
     let didMutate = false;
 
     try {
+      const options = {
+        operationName: 'withdraw',
+        lockAccountIds: [data.accountId],
+        type: TransactionType.WITHDRAWAL,
+        idempotencyKey: data.idempotencyKey,
+      };
+      const assertMatches = (existing: Transaction) =>
+        this.transactionIdempotencyService.assertWithdrawalMatches(
+          existing,
+          data,
+        );
+      const mutation = async ({
+        accountRepository,
+        transactionRepository,
+      }: FinancialTransactionContext) => {
+        const existing =
+          await this.transactionIdempotencyService.findExistingTransaction(
+            transactionRepository,
+            data.idempotencyKey,
+            TransactionType.WITHDRAWAL,
+          );
+        if (existing) {
+          assertMatches(existing);
+          return existing;
+        }
+
+        const account = await this.support.requireAccount(
+          accountRepository,
+          data.accountId,
+        );
+        const updatedAccount = account.withdraw(data.amount);
+        await accountRepository.save(updatedAccount);
+        affectedClientIds = [updatedAccount.toPrimitives().clientId];
+        affectedAccounts = [updatedAccount];
+
+        const savedTransaction = await transactionRepository.save(
+          this.buildWithdrawalTransaction(updatedAccount, data),
+        );
+        didMutate = true;
+        return savedTransaction;
+      };
+
       const transaction =
         await this.transactionIdempotencyService.executeIdempotentTransaction(
-          {
-            operationName: 'withdraw',
-            lockAccountIds: [data.accountId],
-            type: TransactionType.WITHDRAWAL,
-            idempotencyKey: data.idempotencyKey,
-          },
-          async ({ accountRepository, transactionRepository }) => {
-            const existing =
-              await this.transactionIdempotencyService.findExistingTransaction(
-                transactionRepository,
-                data.idempotencyKey,
-                TransactionType.WITHDRAWAL,
-              );
-            if (existing) {
-              this.transactionIdempotencyService.assertWithdrawalMatches(
-                existing,
-                data,
-              );
-              return existing;
-            }
-
-            const account = await this.support.requireAccount(
-              accountRepository,
-              data.accountId,
-            );
-            const updatedAccount = account.withdraw(data.amount);
-            await accountRepository.save(updatedAccount);
-            affectedClientIds = [updatedAccount.toPrimitives().clientId];
-            affectedAccounts = [updatedAccount];
-
-            const savedTransaction = await transactionRepository.save(
-              this.buildWithdrawalTransaction(updatedAccount, data),
-            );
-            didMutate = true;
-            return savedTransaction;
-          },
-          (existing) =>
-            this.transactionIdempotencyService.assertWithdrawalMatches(
-              existing,
-              data,
-            ),
+          options,
+          mutation,
+          assertMatches,
         );
 
       if (didMutate) {
