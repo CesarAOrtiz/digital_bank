@@ -25,10 +25,11 @@ import {
   type TransactionRepository,
   TransactionSearchFilters,
 } from '../../transactions/domain';
-
-const CLIENTS_INDEX = 'clients';
-const ACCOUNTS_INDEX = 'accounts';
-const TRANSACTIONS_INDEX = 'transactions';
+import {
+  ACCOUNTS_INDEX,
+  CLIENTS_INDEX,
+  TRANSACTIONS_INDEX,
+} from './search-index.constants';
 
 interface ClientSearchDocument {
   id: string;
