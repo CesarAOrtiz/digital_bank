@@ -7,13 +7,12 @@ import {
 } from '../../../../common/domain/exceptions';
 import { RedisCacheKeys } from '../../../../common/infrastructure/redis/redis-cache.keys';
 import { Account } from '../../../accounts/domain';
-import { ExchangeRate } from '../../../exchange-rates/domain';
 import { SearchIndexingService } from '../../../search/application/search-indexing.service';
 import { Transaction } from '../../domain';
 import type { FinancialTransactionContext } from '../contracts/financial-transaction-manager.contract';
 import { TransactionIdempotencyService } from './transaction-idempotency.service';
+import { TransferSettlementService } from './transfer-settlement.service';
 import { TransactionWriteService } from './transaction-write.service';
-import { ExchangeRatesService } from '../../../exchange-rates/application/exchange-rates.service';
 import { RedisCacheService } from '../../../../common/infrastructure/redis/redis-cache.service';
 import { AppLogger } from '../../../../common/infrastructure/logging/app-logger.service';
 
@@ -49,17 +48,6 @@ describe('TransactionWriteService', () => {
       description: 'cash-in',
       createdAt: new Date('2026-01-02T00:00:00.000Z'),
       ...overrides,
-    });
-  }
-
-  function buildExchangeRate() {
-    return new ExchangeRate({
-      id: 'fx-1',
-      baseCurrency: Currency.USD,
-      targetCurrency: Currency.DOP,
-      rate: '60.500000',
-      effectiveAt: new Date('2026-01-01T00:00:00.000Z'),
-      createdAt: new Date('2026-01-01T00:00:00.000Z'),
     });
   }
 
@@ -111,9 +99,12 @@ describe('TransactionWriteService', () => {
       delMany: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<RedisCacheService>;
 
-    const exchangeRatesService = {
-      findCurrent: jest.fn().mockResolvedValue(buildExchangeRate()),
-    } as unknown as jest.Mocked<ExchangeRatesService>;
+    const transferSettlementService = {
+      calculate: jest.fn().mockResolvedValue({
+        destinationAmount: '605.00',
+        exchangeRateUsed: '60.500000',
+      }),
+    } as unknown as jest.Mocked<TransferSettlementService>;
 
     const searchIndexingService = {
       indexAccount: jest.fn().mockResolvedValue(undefined),
@@ -129,7 +120,7 @@ describe('TransactionWriteService', () => {
     const service = new TransactionWriteService(
       transactionIdempotencyService,
       redisCacheService,
-      exchangeRatesService,
+      transferSettlementService,
       searchIndexingService,
       appLogger,
     );
@@ -139,7 +130,7 @@ describe('TransactionWriteService', () => {
       context,
       transactionIdempotencyService,
       redisCacheService,
-      exchangeRatesService,
+      transferSettlementService,
       searchIndexingService,
       appLogger,
     };
@@ -324,7 +315,7 @@ describe('TransactionWriteService', () => {
     const {
       service,
       context,
-      exchangeRatesService,
+      transferSettlementService,
       redisCacheService,
       searchIndexingService,
     } = createSut();
@@ -352,6 +343,10 @@ describe('TransactionWriteService', () => {
     });
     context.accountRepository.save.mockImplementation(async (saved) => saved);
     context.transactionRepository.save.mockImplementation(async (saved) => saved);
+    transferSettlementService.calculate.mockResolvedValue({
+      destinationAmount: '30.00',
+      exchangeRateUsed: null,
+    });
 
     const result = await service.transfer({
       sourceAccountId: source.id,
@@ -369,7 +364,11 @@ describe('TransactionWriteService', () => {
     expect(credited.toPrimitives().balance).toBe('50.00');
     expect(result.toPrimitives().destinationAmount).toBe('30.00');
     expect(result.toPrimitives().exchangeRateUsed).toBeNull();
-    expect(exchangeRatesService.findCurrent).not.toHaveBeenCalled();
+    expect(transferSettlementService.calculate).toHaveBeenCalledWith(
+      Currency.USD,
+      Currency.USD,
+      '30',
+    );
     expect(redisCacheService.delMany).toHaveBeenCalledWith([
       RedisCacheKeys.clientAccounts('client-a'),
       RedisCacheKeys.clientAccounts('client-b'),
@@ -383,7 +382,7 @@ describe('TransactionWriteService', () => {
     const {
       service,
       context,
-      exchangeRatesService,
+      transferSettlementService,
       searchIndexingService,
     } = createSut();
     const source = buildAccount({
@@ -410,6 +409,10 @@ describe('TransactionWriteService', () => {
     });
     context.accountRepository.save.mockImplementation(async (saved) => saved);
     context.transactionRepository.save.mockImplementation(async (saved) => saved);
+    transferSettlementService.calculate.mockResolvedValue({
+      destinationAmount: '605.00',
+      exchangeRateUsed: '60.500000',
+    });
 
     const result = await service.transfer({
       sourceAccountId: source.id,
@@ -423,9 +426,10 @@ describe('TransactionWriteService', () => {
       ([saved]) => saved as Account,
     );
 
-    expect(exchangeRatesService.findCurrent).toHaveBeenCalledWith(
+    expect(transferSettlementService.calculate).toHaveBeenCalledWith(
       Currency.USD,
       Currency.DOP,
+      '10',
     );
     expect(credited.toPrimitives().balance).toBe('1605.00');
     expect(result.toPrimitives().destinationAmount).toBe('605.00');
@@ -438,7 +442,7 @@ describe('TransactionWriteService', () => {
     const {
       service,
       context,
-      exchangeRatesService,
+      transferSettlementService,
       redisCacheService,
       searchIndexingService,
       appLogger,
@@ -465,7 +469,7 @@ describe('TransactionWriteService', () => {
       }
       return null;
     });
-    exchangeRatesService.findCurrent.mockRejectedValue(
+    transferSettlementService.calculate.mockRejectedValue(
       new ExchangeRateNotConfiguredException(
         Currency.USD,
         Currency.EUR,

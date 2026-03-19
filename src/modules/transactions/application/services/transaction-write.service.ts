@@ -2,9 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
   formatMoney,
-  formatRate,
-  roundMoney,
-  toDecimal,
 } from '../../../../common/application/money';
 import { Currency, TransactionType } from '../../../../common/domain/enums';
 import {
@@ -22,10 +19,10 @@ import {
 import { RedisCacheService } from '../../../../common/infrastructure/redis/redis-cache.service';
 import { Account } from '../../../accounts/domain';
 import type { AccountRepository } from '../../../accounts/domain';
-import { ExchangeRatesService } from '../../../exchange-rates/application/exchange-rates.service';
 import { SearchIndexingService } from '../../../search/application/search-indexing.service';
 import { Transaction } from '../../domain';
 import { TransactionIdempotencyService } from './transaction-idempotency.service';
+import { TransferSettlementService } from './transfer-settlement.service';
 import type { DepositTransactionInput } from '../inputs/deposit-transaction.input';
 import type { TransferTransactionInput } from '../inputs/transfer-transaction.input';
 import type { WithdrawTransactionInput } from '../inputs/withdraw-transaction.input';
@@ -35,7 +32,7 @@ export class TransactionWriteService {
   constructor(
     private readonly transactionIdempotencyService: TransactionIdempotencyService,
     private readonly redisCacheService: RedisCacheService,
-    private readonly exchangeRatesService: ExchangeRatesService,
+    private readonly transferSettlementService: TransferSettlementService,
     private readonly searchIndexingService: SearchIndexingService,
     private readonly appLogger: AppLogger,
   ) {}
@@ -262,11 +259,12 @@ export class TransactionWriteService {
           );
 
           const debitedSource = sourceAccount.withdraw(data.amount);
-          const settlement = await this.resolveTransferSettlement(
-            sourceAccount.toPrimitives().currency,
-            destinationAccount.toPrimitives().currency,
+          const sourceCurrency = sourceAccount.toPrimitives().currency;
+          const destinationCurrency = destinationAccount.toPrimitives().currency;
+          const settlement = await this.transferSettlementService.calculate(
+            sourceCurrency,
+            destinationCurrency,
             data.amount,
-            data.idempotencyKey ?? null,
           );
 
           const creditedDestination = destinationAccount.deposit(
@@ -284,8 +282,8 @@ export class TransactionWriteService {
             this.buildTransferTransaction({
               sourceAccount: debitedSource,
               destinationAccount: creditedDestination,
-              sourceCurrency: sourceAccount.toPrimitives().currency,
-              destinationCurrency: destinationAccount.toPrimitives().currency,
+              sourceCurrency,
+              destinationCurrency,
               destinationAmount: settlement.destinationAmount,
               exchangeRateUsed: settlement.exchangeRateUsed,
               data,
@@ -408,48 +406,6 @@ export class TransactionWriteService {
     }
 
     return account;
-  }
-
-  private async resolveTransferSettlement(
-    sourceCurrency: Currency,
-    destinationCurrency: Currency,
-    amount: string,
-    idempotencyKey: string | null,
-  ): Promise<{
-    destinationAmount: string;
-    exchangeRateUsed: string | null;
-  }> {
-    if (sourceCurrency === destinationCurrency) {
-      return {
-        destinationAmount: formatMoney(amount),
-        exchangeRateUsed: null,
-      };
-    }
-
-    let exchangeRate;
-    try {
-      exchangeRate = await this.exchangeRatesService.findCurrent(
-        sourceCurrency,
-        destinationCurrency,
-      );
-    } catch (error) {
-      if (error instanceof ExchangeRateNotConfiguredException) {
-        this.appLogger.warn('transaction.transfer.failed', {
-          sourceCurrency,
-          destinationCurrency,
-          idempotencyKey,
-          errorCode: getExceptionCode(error),
-        });
-      }
-      throw error;
-    }
-
-    return {
-      destinationAmount: formatMoney(
-        roundMoney(toDecimal(amount).mul(exchangeRate.rate)),
-      ),
-      exchangeRateUsed: formatRate(exchangeRate.rate),
-    };
   }
 
   private async invalidateClientAccountsCaches(

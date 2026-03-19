@@ -7,6 +7,7 @@ import { AccountsModule } from '../accounts/accounts.module';
 import { ExchangeRatesModule } from '../exchange-rates/exchange-rates.module';
 import { TransactionIdempotencyService } from './application/services/transaction-idempotency.service';
 import { TransactionReadService } from './application/services/transaction-read.service';
+import { TransferSettlementService } from './application/services/transfer-settlement.service';
 import { TransactionWriteService } from './application/services/transaction-write.service';
 import { TransactionsService } from './application/services/transactions.service';
 import { TransactionIdempotencyValidator } from './application/validators/transaction-idempotency.validator';
@@ -21,6 +22,7 @@ import { TransactionsResolver } from './presentation';
     TransactionIdempotencyValidator,
     TransactionIdempotencyService,
     TransactionReadService,
+    TransferSettlementService,
     TransactionWriteService,
     TransactionsService,
     TransactionsResolver,
