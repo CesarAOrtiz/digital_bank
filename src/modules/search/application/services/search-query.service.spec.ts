@@ -1,6 +1,12 @@
-import { AccountStatus, Currency, TransactionType } from '../../../common/domain/enums';
-import { AppLogger } from '../../../common/infrastructure/logging/app-logger.service';
+import { AccountStatus, Currency, TransactionType } from '../../../../common/domain/enums';
+import { AppLogger } from '../../../../common/infrastructure/logging/app-logger.service';
+import { SearchAccountsUseCase } from '../use-cases/search-accounts.use-case';
+import { SearchClientsUseCase } from '../use-cases/search-clients.use-case';
+import { SearchTransactionsUseCase } from '../use-cases/search-transactions.use-case';
+import { SearchExecutionService } from './search-execution.service';
 import { SearchQueryService } from './search-query.service';
+import { TransactionSearchQueryBuilderService } from '../../infrastructure/elastic/builders/transaction-search-query-builder.service';
+import { SearchElasticReaderService } from '../../infrastructure/elastic/search-elastic-reader.service';
 
 describe('SearchQueryService', () => {
   function createSut() {
@@ -22,12 +28,33 @@ describe('SearchQueryService', () => {
       error: jest.fn(),
     } as unknown as jest.Mocked<AppLogger>;
 
-    const service = new SearchQueryService(
+    const searchExecutionService = new SearchExecutionService(appLogger);
+    const searchElasticReaderService = new SearchElasticReaderService(
       elastic as never,
+    );
+    const searchClientsUseCase = new SearchClientsUseCase(
+      searchElasticReaderService,
+      searchExecutionService,
       clientRepository as never,
+      appLogger,
+    );
+    const searchAccountsUseCase = new SearchAccountsUseCase(
+      searchElasticReaderService,
+      searchExecutionService,
       accountRepository as never,
+      appLogger,
+    );
+    const searchTransactionsUseCase = new SearchTransactionsUseCase(
+      searchElasticReaderService,
+      searchExecutionService,
+      new TransactionSearchQueryBuilderService(),
       transactionRepository as never,
       appLogger,
+    );
+    const service = new SearchQueryService(
+      searchClientsUseCase,
+      searchAccountsUseCase,
+      searchTransactionsUseCase,
     );
 
     return {

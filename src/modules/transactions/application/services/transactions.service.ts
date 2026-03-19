@@ -4,7 +4,7 @@ import type { TransactionSearchFilters } from '../../domain';
 import type { DepositTransactionInput } from '../inputs/deposit-transaction.input';
 import type { TransferTransactionInput } from '../inputs/transfer-transaction.input';
 import type { WithdrawTransactionInput } from '../inputs/withdraw-transaction.input';
-import { SearchQueryService } from '../../../search/application/search-query.service';
+import { SearchQueryService } from '../../../search/application/services/search-query.service';
 import { TransactionReadService } from './transaction-read.service';
 import { TransactionWriteService } from './transaction-write.service';
 

@@ -11,7 +11,7 @@ import {
   ResourceNotFoundException,
 } from '../../../../common/domain/exceptions';
 import { TransactionType } from '../../../../common/domain/enums';
-import { SearchIndexingService } from '../../../search/application/search-indexing.service';
+import { SearchIndexingService } from '../../../search/infrastructure/elastic/search-indexing.service';
 import { Account } from '../../../accounts/domain';
 import type { AccountRepository } from '../../../accounts/domain';
 import { Transaction } from '../../domain';

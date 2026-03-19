@@ -1,10 +1,10 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Client as ElasticClient } from '@elastic/elasticsearch';
 import type { estypes } from '@elastic/elasticsearch';
-import { ELASTIC_CLIENT } from '../../../common/infrastructure/elasticsearch/elasticsearch.tokens';
-import { Account } from '../../accounts/domain';
-import { Client } from '../../clients/domain';
-import { Transaction } from '../../transactions/domain';
+import { ELASTIC_CLIENT } from '../../../../common/infrastructure/elasticsearch/elasticsearch.tokens';
+import { Account } from '../../../accounts/domain';
+import { Client } from '../../../clients/domain';
+import { Transaction } from '../../../transactions/domain';
 import {
   ACCOUNTS_INDEX,
   ACCOUNTS_MAPPING,

@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
-import { SearchReindexService } from '../modules/search/application/search-reindex.service';
+import { SearchReindexService } from '../modules/search/application/services/search-reindex.service';
 
 async function run(): Promise<void> {
   const logger = new Logger('SearchReindexRunner');
