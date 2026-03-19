@@ -7,10 +7,10 @@ import { Account } from '../../../accounts/domain';
 import { Transaction } from '../../domain';
 import type { FinancialTransactionContext } from '../contracts/financial-transaction-manager.contract';
 import type { TransferTransactionInput } from '../inputs/transfer-transaction.input';
-import { buildTransferRequestFingerprint } from './transaction-request-fingerprint';
-import { TransactionIdempotencyService } from './transaction-idempotency.service';
-import { TransactionMutationSupportService } from './transaction-mutation-support.service';
-import { TransferSettlementService } from './transfer-settlement.service';
+import { TransactionIdempotencyService } from '../services/transaction-idempotency.service';
+import { TransactionMutationSupportService } from '../services/transaction-mutation-support.service';
+import { TransferSettlementService } from '../services/transfer-settlement.service';
+import { buildTransferRequestFingerprint } from '../utils/transaction-request-fingerprint';
 
 @Injectable()
 export class TransferUseCase {

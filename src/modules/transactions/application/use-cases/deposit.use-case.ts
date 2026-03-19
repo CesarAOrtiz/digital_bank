@@ -6,9 +6,9 @@ import { Account } from '../../../accounts/domain';
 import { Transaction } from '../../domain';
 import type { FinancialTransactionContext } from '../contracts/financial-transaction-manager.contract';
 import type { DepositTransactionInput } from '../inputs/deposit-transaction.input';
-import { buildDepositRequestFingerprint } from './transaction-request-fingerprint';
-import { TransactionIdempotencyService } from './transaction-idempotency.service';
-import { TransactionMutationSupportService } from './transaction-mutation-support.service';
+import { TransactionIdempotencyService } from '../services/transaction-idempotency.service';
+import { TransactionMutationSupportService } from '../services/transaction-mutation-support.service';
+import { buildDepositRequestFingerprint } from '../utils/transaction-request-fingerprint';
 
 @Injectable()
 export class DepositUseCase {

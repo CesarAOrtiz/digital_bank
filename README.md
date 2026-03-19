@@ -193,6 +193,14 @@ La estrategia implementada es:
 
 Además, la unicidad se maneja por combinación `type + idempotencyKey`, no por `idempotencyKey` global, lo que permite semántica más precisa por tipo de operación.
 
+El fingerprint:
+
+- no incluye timestamps ni campos no deterministas
+- se calcula sobre un payload normalizado
+- permite comparar reintentos legítimos de forma compacta y persistida
+
+Para mantener compatibilidad con registros previos a esta mejora, si una transacción histórica no tiene fingerprint persistido todavía, la validación conserva el fallback estructural del payload.
+
 ### Precisión Monetaria
 
 Los montos y tasas usan `decimal.js`.
