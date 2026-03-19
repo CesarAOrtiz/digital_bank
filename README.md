@@ -614,23 +614,42 @@ GraphQL queda disponible en:
 
 ## Ejecutar con Docker
 
-Levantar todo el stack:
+Flujo rápido para dejar el proyecto listo:
 
 ```bash
 docker compose up --build -d
+docker compose run --rm app npm run migration:run:prod
+docker compose run --rm app npm run seed:prod
 ```
 
-Esto levantará:
+Con eso tendrás:
 
 - API NestJS
 - PostgreSQL
 - Redis
 - Elasticsearch
+- esquema migrado
+- datos demo cargados
 
 Rutas útiles:
 
 - GraphQL: `http://localhost:3000/graphql`
 - Health: `http://localhost:3000/health`
+
+Si ya levantaste el stack antes y no necesitas volver a migrar o recargar datos demo:
+
+```bash
+docker compose up -d
+```
+
+Comandos operativos más usados:
+
+```bash
+docker compose run --rm app npm run migration:run:prod
+docker compose run --rm app npm run seed:prod
+docker compose run --rm app npm run seed:reset:prod
+docker compose run --rm app npm run migration:revert:prod
+```
 
 ### Probar Con Postman
 
@@ -675,35 +694,6 @@ Flujo recomendado en Postman:
 7. `List Transactions` o búsquedas
 
 Los requests de creación actualizan variables automáticamente para poder encadenar pruebas sin copiar IDs manualmente.
-
-### Migraciones y seeds
-
-Las migraciones y los seeds no se ejecutan automáticamente al iniciar el stack.
-Se ejecutan manualmente para evitar que se repitan en cada `docker compose up` y para desacoplar el bootstrap de datos del arranque normal de la aplicación.
-
-Ejecutar migraciones:
-
-```bash
-docker compose run --rm app npm run migration:run:prod
-```
-
-Ejecutar seeds:
-
-```bash
-docker compose run --rm app npm run seed:prod
-```
-
-Revertir la última migración:
-
-```bash
-docker compose run --rm app npm run migration:revert:prod
-```
-
-Resetear datos seed:
-
-```bash
-docker compose run --rm app npm run seed:reset:prod
-```
 
 ### Flujo Recomendado
 
@@ -977,27 +967,27 @@ query {
 }
 ```
 
-## Estado Actual y Trabajo en Curso
+## Estado Actual
 
 Actualmente ya están implementados los componentes centrales del backend financiero:
 
 - clientes, cuentas, depósitos, retiros y transferencias
 - transferencias multi-moneda con tasa vigente
 - control de concurrencia con locking pesimista
-- idempotencia en operaciones financieras
+- idempotencia en operaciones financieras, reforzada con fingerprint de payload
 - caché selectiva con Redis
 - búsquedas respaldadas por Elasticsearch
+- reindexación operativa de Elasticsearch desde PostgreSQL
 - seed inicial de datos demo
 - health checks
 
-Todavía estoy ampliando algunos puntos del alcance original de la prueba:
+## Mejoras Futuras Posibles
 
-- ampliación de la suite de tests, especialmente escenarios e2e adicionales y concurrencia
-- validación y ajuste fino del flujo Docker en distintos entornos locales
+- ampliación de la suite de pruebas con integración fullstack sobre infraestructura real
 - pruebas de integración adicionales del modo degradado cuando Elastic no está disponible
-- observabilidad más explícita sobre fallos de indexación y fallback de búsquedas a PostgreSQL
+- métricas y señales operativas más claras sobre fallos de indexación y uso de fallback a PostgreSQL
 
-Hay además decisiones que sí quedaron fuera del alcance actual de esta iteración:
+## Decisiones Fuera Del Alcance De Esta Iteración
 
 - autenticación y autorización
 - saga/outbox para reintentos de indexación
