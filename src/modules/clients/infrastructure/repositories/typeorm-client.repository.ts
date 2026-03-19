@@ -23,9 +23,32 @@ export class TypeOrmClientRepository implements ClientRepository {
     );
   }
 
-  async findAll(): Promise<Client[]> {
+  async findAll(limit?: number, offset?: number): Promise<Client[]> {
     const repository = await this.getRepository();
-    return (await repository.find()).map(ClientOrmMapper.toDomain);
+    return (
+      await repository.find({
+        order: { createdAt: 'DESC', id: 'DESC' },
+        ...(limit !== undefined ? { take: limit } : {}),
+        ...(offset !== undefined ? { skip: offset } : {}),
+      })
+    ).map(ClientOrmMapper.toDomain);
+  }
+
+  async findPageAfterId(
+    lastId: string | null,
+    limit: number,
+  ): Promise<Client[]> {
+    const repository = await this.getRepository();
+    const query = repository
+      .createQueryBuilder('client')
+      .orderBy('client.id', 'ASC')
+      .take(limit);
+
+    if (lastId) {
+      query.where('client.id > :lastId', { lastId });
+    }
+
+    return (await query.getMany()).map(ClientOrmMapper.toDomain);
   }
 
   async findById(id: string): Promise<Client | null> {

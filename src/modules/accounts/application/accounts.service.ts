@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { formatMoney, roundMoney } from '../../../common/application/money';
+import { normalizePagination } from '../../../common/application/pagination';
 import { AccountStatus } from '../../../common/domain/enums';
 import {
   DomainRuleViolationException,
@@ -73,12 +74,18 @@ export class AccountsService {
     return account;
   }
 
-  findAll(): Promise<Account[]> {
-    return this.accountRepository.findAll();
+  findAll(limit?: number, offset?: number): Promise<Account[]> {
+    const page = normalizePagination({ limit, offset });
+    return this.accountRepository.findAll(page.limit, page.offset);
   }
 
-  findByClient(clientId: string): Promise<Account[]> {
-    return this.findByClientCached(clientId.trim());
+  findByClient(
+    clientId: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<Account[]> {
+    const page = normalizePagination({ limit, offset });
+    return this.findByClientCached(clientId.trim(), page.limit, page.offset);
   }
 
   async findByAccountNumber(accountNumber: string): Promise<Account> {
@@ -93,8 +100,9 @@ export class AccountsService {
     return account;
   }
 
-  search(term: string): Promise<Account[]> {
-    return this.searchQueryService.searchAccounts(term);
+  search(term: string, limit?: number, offset?: number): Promise<Account[]> {
+    const page = normalizePagination({ limit, offset });
+    return this.searchQueryService.searchAccounts(term, page.limit, page.offset);
   }
 
   async findOne(id: string): Promise<Account> {
@@ -112,14 +120,20 @@ export class AccountsService {
     );
   }
 
-  private async findByClientCached(clientId: string): Promise<Account[]> {
+  private async findByClientCached(
+    clientId: string,
+    limit: number,
+    offset: number,
+  ): Promise<Account[]> {
     const cacheKey = RedisCacheKeys.clientAccounts(clientId);
     const cached =
       await this.redisCacheService.get<
         Array<ReturnType<Account['toPrimitives']>>
       >(cacheKey);
     if (cached) {
-      return cached.map(
+      return cached
+      .slice(offset, offset + limit)
+      .map(
         (account) =>
           new Account({
             ...account,
@@ -135,6 +149,6 @@ export class AccountsService {
       accounts.map((account) => account.toPrimitives()),
       RedisCacheTtl.clientAccounts,
     );
-    return accounts;
+    return accounts.slice(offset, offset + limit);
   }
 }

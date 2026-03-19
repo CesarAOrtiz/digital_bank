@@ -110,7 +110,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query { clients { id firstName lastName email documentNumber createdAt updatedAt } }\"\n}"
+              "raw": "{\n  \"query\": \"query ListClients($pagination: PaginationInput) { clients(pagination: $pagination) { id firstName lastName email documentNumber createdAt updatedAt } }\",\n  \"variables\": {\n    \"pagination\": {\n      \"limit\": 25,\n      \"offset\": 0\n    }\n  }\n}"
             },
             "url": {
               "raw": "{{graphqlUrl}}",
@@ -156,7 +156,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query SearchClients($term: String!) { searchClients(term: $term) { id firstName lastName email documentNumber } }\",\n  \"variables\": {\n    \"term\": \"Juan\"\n  }\n}"
+              "raw": "{\n  \"query\": \"query SearchClients($term: String!, $pagination: PaginationInput) { searchClients(term: $term, pagination: $pagination) { id firstName lastName email documentNumber } }\",\n  \"variables\": {\n    \"term\": \"Juan\",\n    \"pagination\": {\n      \"limit\": 10,\n      \"offset\": 0\n    }\n  }\n}"
             },
             "url": {
               "raw": "{{graphqlUrl}}",
@@ -261,7 +261,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query { accounts { id accountNumber clientId currency balance status createdAt updatedAt } }\"\n}"
+              "raw": "{\n  \"query\": \"query ListAccounts($pagination: PaginationInput) { accounts(pagination: $pagination) { id accountNumber clientId currency balance status createdAt updatedAt } }\",\n  \"variables\": {\n    \"pagination\": {\n      \"limit\": 25,\n      \"offset\": 0\n    }\n  }\n}"
             },
             "url": {
               "raw": "{{graphqlUrl}}",
@@ -307,7 +307,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query AccountsByClient($clientId: ID!) { accountsByClient(clientId: $clientId) { id accountNumber clientId currency balance status } }\",\n  \"variables\": {\n    \"clientId\": \"{{clientId}}\"\n  }\n}"
+              "raw": "{\n  \"query\": \"query AccountsByClient($clientId: ID!, $pagination: PaginationInput) { accountsByClient(clientId: $clientId, pagination: $pagination) { id accountNumber clientId currency balance status } }\",\n  \"variables\": {\n    \"clientId\": \"{{clientId}}\",\n    \"pagination\": {\n      \"limit\": 25,\n      \"offset\": 0\n    }\n  }\n}"
             },
             "url": {
               "raw": "{{graphqlUrl}}",
@@ -353,7 +353,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query SearchAccounts($term: String!) { searchAccounts(term: $term) { id accountNumber clientId currency balance status } }\",\n  \"variables\": {\n    \"term\": \"ACC-1001\"\n  }\n}"
+              "raw": "{\n  \"query\": \"query SearchAccounts($term: String!, $pagination: PaginationInput) { searchAccounts(term: $term, pagination: $pagination) { id accountNumber clientId currency balance status } }\",\n  \"variables\": {\n    \"term\": \"ACC-1001\",\n    \"pagination\": {\n      \"limit\": 10,\n      \"offset\": 0\n    }\n  }\n}"
             },
             "url": {
               "raw": "{{graphqlUrl}}",
@@ -539,7 +539,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query { transactions { id type sourceAccountId destinationAccountId sourceAmount destinationAmount sourceCurrency destinationCurrency description idempotencyKey createdAt } }\"\n}"
+              "raw": "{\n  \"query\": \"query ListTransactions($pagination: PaginationInput) { transactions(pagination: $pagination) { id type sourceAccountId destinationAccountId sourceAmount destinationAmount sourceCurrency destinationCurrency description idempotencyKey createdAt } }\",\n  \"variables\": {\n    \"pagination\": {\n      \"limit\": 25,\n      \"offset\": 0\n    }\n  }\n}"
             },
             "url": {
               "raw": "{{graphqlUrl}}",
@@ -585,7 +585,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query SearchTransactions($filters: SearchTransactionsInput) { searchTransactions(filters: $filters) { id type sourceAccountId destinationAccountId sourceAmount destinationAmount sourceCurrency destinationCurrency description idempotencyKey createdAt } }\",\n  \"variables\": {\n    \"filters\": {\n      \"accountId\": \"{{accountId}}\",\n      \"type\": \"DEPOSIT\",\n      \"dateFrom\": \"2026-03-01T00:00:00Z\",\n      \"dateTo\": \"2026-03-31T23:59:59Z\"\n    }\n  }\n}"
+              "raw": "{\n  \"query\": \"query SearchTransactions($filters: SearchTransactionsInput, $pagination: PaginationInput) { searchTransactions(filters: $filters, pagination: $pagination) { id type sourceAccountId destinationAccountId sourceAmount destinationAmount sourceCurrency destinationCurrency description idempotencyKey createdAt } }\",\n  \"variables\": {\n    \"filters\": {\n      \"accountId\": \"{{accountId}}\",\n      \"type\": \"DEPOSIT\",\n      \"dateFrom\": \"2026-03-01T00:00:00Z\",\n      \"dateTo\": \"2026-03-31T23:59:59Z\"\n    },\n    \"pagination\": {\n      \"limit\": 20,\n      \"offset\": 0\n    }\n  }\n}"
             },
             "url": {
               "raw": "{{graphqlUrl}}",

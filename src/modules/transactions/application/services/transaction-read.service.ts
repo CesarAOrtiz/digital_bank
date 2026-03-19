@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { normalizePagination } from '../../../../common/application/pagination';
 import { ResourceNotFoundException } from '../../../../common/domain/exceptions';
 import { TRANSACTION_REPOSITORY } from '../../../../common/infrastructure/repository.tokens';
 import { Transaction } from '../../domain';
@@ -14,8 +15,9 @@ export class TransactionReadService {
     private readonly transactionRepository: TransactionRepository,
   ) {}
 
-  findAll(): Promise<Transaction[]> {
-    return this.transactionRepository.findAll();
+  findAll(limit?: number, offset?: number): Promise<Transaction[]> {
+    const page = normalizePagination({ limit, offset });
+    return this.transactionRepository.findAll(page.limit, page.offset);
   }
 
   search(filters: TransactionSearchFilters): Promise<Transaction[]> {

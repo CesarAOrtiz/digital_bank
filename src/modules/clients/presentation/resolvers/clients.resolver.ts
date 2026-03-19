@@ -1,4 +1,5 @@
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { PaginationInput } from '../../../../common/presentation/inputs/pagination.input';
 import { ClientsService } from '../../application/clients.service';
 import { CreateClientInput } from '../inputs/create-client.input';
 import { ClientGraphqlMapper } from '../mappers/client-graphql.mapper';
@@ -17,8 +18,13 @@ export class ClientsResolver {
   }
 
   @Query(() => [ClientGraphqlModel], { name: 'clients' })
-  async findClients(): Promise<ClientGraphqlModel[]> {
-    const clients = await this.clientsService.findAll();
+  async findClients(
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
+  ): Promise<ClientGraphqlModel[]> {
+    const clients = await this.clientsService.findAll(
+      pagination?.limit,
+      pagination?.offset,
+    );
     return clients.map(ClientGraphqlMapper.toModel);
   }
 
@@ -33,8 +39,13 @@ export class ClientsResolver {
   @Query(() => [ClientGraphqlModel], { name: 'searchClients' })
   async searchClients(
     @Args('term') term: string,
+    @Args('pagination', { nullable: true }) pagination?: PaginationInput,
   ): Promise<ClientGraphqlModel[]> {
-    const clients = await this.clientsService.search(term);
+    const clients = await this.clientsService.search(
+      term,
+      pagination?.limit,
+      pagination?.offset,
+    );
     return clients.map(ClientGraphqlMapper.toModel);
   }
 }

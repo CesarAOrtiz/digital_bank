@@ -48,7 +48,7 @@ describe('SearchQueryService', () => {
       },
     });
 
-    const result = await service.searchClients('  Ada  ');
+    const result = await service.searchClients('  Ada  ', 10, 5);
 
     expect(elastic.search).toHaveBeenCalledWith({
       index: 'clients',
@@ -83,7 +83,8 @@ describe('SearchQueryService', () => {
         },
       },
       sort: [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }],
-      size: 25,
+      from: 5,
+      size: 10,
     });
     expect(result).toHaveLength(1);
     expect(result[0].toPrimitives()).toEqual({
@@ -118,7 +119,7 @@ describe('SearchQueryService', () => {
       },
     });
 
-    const result = await service.searchAccounts(' ACC ');
+    const result = await service.searchAccounts(' ACC ', 15, 10);
 
     expect(elastic.search).toHaveBeenCalledWith({
       index: 'accounts',
@@ -146,7 +147,8 @@ describe('SearchQueryService', () => {
         },
       },
       sort: [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }],
-      size: 25,
+      from: 10,
+      size: 15,
     });
     expect(result[0].toPrimitives()).toEqual({
       id: 'account-1',
@@ -185,16 +187,20 @@ describe('SearchQueryService', () => {
       },
     });
 
-    const result = await service.searchTransactions({
-      text: ' Transfer ',
-      type: TransactionType.TRANSFER,
-      accountId: 'account-any',
-      sourceAccountId: 'source-1',
-      destinationAccountId: 'dest-1',
-      currency: Currency.DOP,
-      dateFrom: new Date('2026-01-01T00:00:00.000Z'),
-      dateTo: new Date('2026-01-31T23:59:59.000Z'),
-    });
+    const result = await service.searchTransactions(
+      {
+        text: ' Transfer ',
+        type: TransactionType.TRANSFER,
+        accountId: 'account-any',
+        sourceAccountId: 'source-1',
+        destinationAccountId: 'dest-1',
+        currency: Currency.DOP,
+        dateFrom: new Date('2026-01-01T00:00:00.000Z'),
+        dateTo: new Date('2026-01-31T23:59:59.000Z'),
+      },
+      20,
+      40,
+    );
 
     expect(elastic.search).toHaveBeenCalledWith({
       index: 'transactions',
@@ -267,7 +273,8 @@ describe('SearchQueryService', () => {
         },
       },
       sort: [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }],
-      size: 50,
+      from: 40,
+      size: 20,
     });
     expect(result[0].toPrimitives()).toEqual({
       id: 'tx-1',
@@ -321,6 +328,7 @@ describe('SearchQueryService', () => {
           filter: [{ term: { type: TransactionType.DEPOSIT } }],
         },
       },
+      from: 0,
       sort: [{ createdAt: { order: 'desc' } }],
       size: 50,
     });

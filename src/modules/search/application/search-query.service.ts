@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Client as ElasticClient } from '@elastic/elasticsearch';
+import { normalizePagination } from '../../../common/application/pagination';
 import {
   AccountStatus,
   Currency,
@@ -62,12 +63,17 @@ export class SearchQueryService {
     private readonly appLogger: AppLogger,
   ) {}
 
-  async searchClients(term: string): Promise<Client[]> {
+  async searchClients(
+    term: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<Client[]> {
     const normalizedTerm = term.trim();
     if (!normalizedTerm) {
       return [];
     }
     const startedAt = Date.now();
+    const page = normalizePagination({ limit, offset });
 
     const response = await this.elastic.search<ClientSearchDocument>({
       index: CLIENTS_INDEX,
@@ -102,7 +108,8 @@ export class SearchQueryService {
         },
       },
       sort: [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }],
-      size: 25,
+      from: page.offset,
+      size: page.limit,
     });
 
     const clients = response.hits.hits
@@ -124,6 +131,8 @@ export class SearchQueryService {
     this.appLogger.log('search.clients.executed', {
       index: CLIENTS_INDEX,
       term: normalizedTerm,
+      offset: page.offset,
+      limit: page.limit,
       resultCount: clients.length,
       durationMs: Date.now() - startedAt,
     });
@@ -131,12 +140,17 @@ export class SearchQueryService {
     return clients;
   }
 
-  async searchAccounts(term: string): Promise<Account[]> {
+  async searchAccounts(
+    term: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<Account[]> {
     const normalizedTerm = term.trim();
     if (!normalizedTerm) {
       return [];
     }
     const startedAt = Date.now();
+    const page = normalizePagination({ limit, offset });
 
     const response = await this.elastic.search<AccountSearchDocument>({
       index: ACCOUNTS_INDEX,
@@ -164,7 +178,8 @@ export class SearchQueryService {
         },
       },
       sort: [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }],
-      size: 25,
+      from: page.offset,
+      size: page.limit,
     });
 
     const accounts = response.hits.hits
@@ -187,6 +202,8 @@ export class SearchQueryService {
     this.appLogger.log('search.accounts.executed', {
       index: ACCOUNTS_INDEX,
       term: normalizedTerm,
+      offset: page.offset,
+      limit: page.limit,
       resultCount: accounts.length,
       durationMs: Date.now() - startedAt,
     });
@@ -196,8 +213,11 @@ export class SearchQueryService {
 
   async searchTransactions(
     filters: TransactionSearchFilters,
+    limit?: number,
+    offset?: number,
   ): Promise<Transaction[]> {
     const startedAt = Date.now();
+    const page = normalizePagination({ limit, offset, defaultLimit: 50 });
     const must: object[] = [];
     const filter: object[] = [];
 
@@ -298,7 +318,8 @@ export class SearchQueryService {
       sort: must.length
         ? [{ _score: { order: 'desc' } }, { createdAt: { order: 'desc' } }]
         : [{ createdAt: { order: 'desc' } }],
-      size: 50,
+      from: page.offset,
+      size: page.limit,
     });
 
     const transactions = response.hits.hits
@@ -337,6 +358,8 @@ export class SearchQueryService {
         dateFrom: filters.dateFrom?.toISOString(),
         dateTo: filters.dateTo?.toISOString(),
       },
+      offset: page.offset,
+      limit: page.limit,
       resultCount: transactions.length,
       durationMs: Date.now() - startedAt,
     });

@@ -16,6 +16,8 @@ export interface SearchReindexSummary {
   transactions: number;
 }
 
+const REINDEX_BATCH_SIZE = 200;
+
 @Injectable()
 export class SearchReindexService {
   constructor(
@@ -32,30 +34,63 @@ export class SearchReindexService {
   async reindexAll(): Promise<SearchReindexSummary> {
     this.appLogger.log('search.reindex.started');
 
-    await this.searchIndexingService.recreateIndices();
-
-    const [clients, accounts, transactions] = await Promise.all([
-      this.clientRepository.findAll(),
-      this.accountRepository.findAll(),
-      this.transactionRepository.findAll(),
-    ]);
-
-    await Promise.all(clients.map((client) => this.searchIndexingService.indexClient(client)));
-    await Promise.all(accounts.map((account) => this.searchIndexingService.indexAccount(account)));
-    await Promise.all(
-      transactions.map((transaction) =>
-        this.searchIndexingService.indexTransaction(transaction),
-      ),
-    );
+    await this.searchIndexingService.ensureIndices();
 
     const summary = {
-      clients: clients.length,
-      accounts: accounts.length,
-      transactions: transactions.length,
+      clients: await this.reindexClients(),
+      accounts: await this.reindexAccounts(),
+      transactions: await this.reindexTransactions(),
     } satisfies SearchReindexSummary;
 
     this.appLogger.log('search.reindex.completed', summary);
 
     return summary;
+  }
+
+  private async reindexClients(): Promise<number> {
+    return this.reindexInBatches(
+      (lastId, limit) => this.clientRepository.findPageAfterId(lastId, limit),
+      (client) => client.toPrimitives().id,
+      (client) => this.searchIndexingService.indexClient(client),
+    );
+  }
+
+  private async reindexAccounts(): Promise<number> {
+    return this.reindexInBatches(
+      (lastId, limit) => this.accountRepository.findPageAfterId(lastId, limit),
+      (account) => account.toPrimitives().id,
+      (account) => this.searchIndexingService.indexAccount(account),
+    );
+  }
+
+  private async reindexTransactions(): Promise<number> {
+    return this.reindexInBatches(
+      (lastId, limit) =>
+        this.transactionRepository.findPageAfterId(lastId, limit),
+      (transaction) => transaction.toPrimitives().id,
+      (transaction) => this.searchIndexingService.indexTransaction(transaction),
+    );
+  }
+
+  private async reindexInBatches<T>(
+    fetchBatch: (lastId: string | null, limit: number) => Promise<T[]>,
+    getId: (item: T) => string,
+    indexOne: (item: T) => Promise<void>,
+  ): Promise<number> {
+    let total = 0;
+    let lastId: string | null = null;
+
+    while (true) {
+      const batch = await fetchBatch(lastId, REINDEX_BATCH_SIZE);
+      if (!batch.length) {
+        break;
+      }
+
+      await Promise.all(batch.map((item) => indexOne(item)));
+      total += batch.length;
+      lastId = getId(batch[batch.length - 1]);
+    }
+
+    return total;
   }
 }

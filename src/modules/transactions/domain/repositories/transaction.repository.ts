@@ -4,7 +4,8 @@ import type { TransactionSearchFilters } from '../types/transaction-search-filte
 
 export interface TransactionRepository {
   save(transaction: Transaction): Promise<Transaction>;
-  findAll(): Promise<Transaction[]>;
+  findAll(limit?: number, offset?: number): Promise<Transaction[]>;
+  findPageAfterId(lastId: string | null, limit: number): Promise<Transaction[]>;
   findById(id: string): Promise<Transaction | null>;
   findByIdempotencyKey(
     idempotencyKey: string,
