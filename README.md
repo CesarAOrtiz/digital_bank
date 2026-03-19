@@ -916,6 +916,9 @@ Todavía estoy ampliando algunos puntos del alcance original de la prueba:
 
 - ampliación de la suite de tests, especialmente escenarios e2e adicionales y concurrencia
 - validación y ajuste fino del flujo Docker en distintos entornos locales
+- reindexación de recuperación desde PostgreSQL cuando Elastic estuvo caído durante escrituras
+- pruebas de integración del modo degradado cuando Elastic no está disponible
+- observabilidad más explícita sobre fallos de indexación y fallback de búsquedas a PostgreSQL
 
 Hay además decisiones que sí quedaron fuera del alcance actual de esta iteración:
 
