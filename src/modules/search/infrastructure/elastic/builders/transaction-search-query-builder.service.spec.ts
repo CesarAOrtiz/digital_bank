@@ -1,4 +1,4 @@
-import { Currency, TransactionType } from '../../../../common/domain/enums';
+import { Currency, TransactionType } from '../../../../../common/domain/enums';
 import { TransactionSearchQueryBuilderService } from './transaction-search-query-builder.service';
 
 describe('TransactionSearchQueryBuilderService', () => {

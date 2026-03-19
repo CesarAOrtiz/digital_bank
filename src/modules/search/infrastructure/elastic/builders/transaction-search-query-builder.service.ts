@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import {
   NormalizedPagination,
   normalizePagination,
-} from '../../../../common/application/pagination';
-import { TransactionSearchFilters } from '../../../transactions/domain';
+} from '../../../../../common/application/pagination';
+import { TransactionSearchFilters } from '../../../../transactions/domain';
 
 interface TransactionSearchQuery {
   must: object[];

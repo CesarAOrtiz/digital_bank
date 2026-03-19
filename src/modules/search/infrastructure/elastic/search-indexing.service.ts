@@ -12,7 +12,7 @@ import {
   CLIENTS_MAPPING,
   TRANSACTIONS_INDEX,
   TRANSACTIONS_MAPPING,
-} from '../search-index.constants';
+} from './search-index.constants';
 
 @Injectable()
 export class SearchIndexingService implements OnModuleInit {

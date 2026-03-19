@@ -14,7 +14,7 @@ import { CLIENT_REPOSITORY } from '../../../common/infrastructure/repository.tok
 import { Client } from '../domain';
 import type { ClientRepository } from '../domain';
 import type { CreateClientInput } from './inputs/create-client.input';
-import { SearchIndexingService } from '../../search/application/services/search-indexing.service';
+import { SearchIndexingService } from '../../search/infrastructure/elastic/search-indexing.service';
 import { SearchQueryService } from '../../search/application/services/search-query.service';
 
 @Injectable()

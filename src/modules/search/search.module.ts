@@ -5,12 +5,12 @@ import { TransactionsModule } from '../transactions/transactions.module';
 import { SearchAccountsUseCase } from './application/use-cases/search-accounts.use-case';
 import { SearchClientsUseCase } from './application/use-cases/search-clients.use-case';
 import { SearchTransactionsUseCase } from './application/use-cases/search-transactions.use-case';
-import { SearchElasticReaderService } from './application/services/search-elastic-reader.service';
 import { SearchExecutionService } from './application/services/search-execution.service';
-import { SearchIndexingService } from './application/services/search-indexing.service';
 import { SearchReindexService } from './application/services/search-reindex.service';
 import { SearchQueryService } from './application/services/search-query.service';
-import { TransactionSearchQueryBuilderService } from './application/services/transaction-search-query-builder.service';
+import { SearchElasticReaderService } from './infrastructure/elastic/search-elastic-reader.service';
+import { SearchIndexingService } from './infrastructure/elastic/search-indexing.service';
+import { TransactionSearchQueryBuilderService } from './infrastructure/elastic/builders/transaction-search-query-builder.service';
 
 @Global()
 @Module({

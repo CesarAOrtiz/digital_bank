@@ -14,7 +14,7 @@ import {
   ACCOUNTS_INDEX,
   CLIENTS_INDEX,
   TRANSACTIONS_INDEX,
-} from '../search-index.constants';
+} from './search-index.constants';
 
 interface ClientSearchDocument {
   id: string;

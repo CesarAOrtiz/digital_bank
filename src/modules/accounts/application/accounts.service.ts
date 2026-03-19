@@ -18,7 +18,7 @@ import {
   CLIENT_REPOSITORY,
 } from '../../../common/infrastructure/repository.tokens';
 import type { ClientRepository } from '../../clients/domain';
-import { SearchIndexingService } from '../../search/application/services/search-indexing.service';
+import { SearchIndexingService } from '../../search/infrastructure/elastic/search-indexing.service';
 import { SearchQueryService } from '../../search/application/services/search-query.service';
 import { Account } from '../domain';
 import type { AccountRepository } from '../domain';

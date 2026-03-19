@@ -4,8 +4,8 @@ import { AppLogger } from '../../../../common/infrastructure/logging/app-logger.
 import { CLIENT_REPOSITORY } from '../../../../common/infrastructure/repository.tokens';
 import type { ClientRepository } from '../../../clients/domain';
 import { Client } from '../../../clients/domain';
-import { CLIENTS_INDEX } from '../search-index.constants';
-import { SearchElasticReaderService } from '../services/search-elastic-reader.service';
+import { SearchElasticReaderService } from '../../infrastructure/elastic/search-elastic-reader.service';
+import { CLIENTS_INDEX } from '../../infrastructure/elastic/search-index.constants';
 import { SearchExecutionService } from '../services/search-execution.service';
 
 @Injectable()

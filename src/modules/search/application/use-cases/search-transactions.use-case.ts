@@ -6,10 +6,10 @@ import {
   type TransactionRepository,
   TransactionSearchFilters,
 } from '../../../transactions/domain';
-import { TRANSACTIONS_INDEX } from '../search-index.constants';
-import { SearchElasticReaderService } from '../services/search-elastic-reader.service';
 import { SearchExecutionService } from '../services/search-execution.service';
-import { TransactionSearchQueryBuilderService } from '../services/transaction-search-query-builder.service';
+import { TransactionSearchQueryBuilderService } from '../../infrastructure/elastic/builders/transaction-search-query-builder.service';
+import { SearchElasticReaderService } from '../../infrastructure/elastic/search-elastic-reader.service';
+import { TRANSACTIONS_INDEX } from '../../infrastructure/elastic/search-index.constants';
 
 @Injectable()
 export class SearchTransactionsUseCase {

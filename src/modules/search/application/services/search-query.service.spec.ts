@@ -3,10 +3,10 @@ import { AppLogger } from '../../../../common/infrastructure/logging/app-logger.
 import { SearchAccountsUseCase } from '../use-cases/search-accounts.use-case';
 import { SearchClientsUseCase } from '../use-cases/search-clients.use-case';
 import { SearchTransactionsUseCase } from '../use-cases/search-transactions.use-case';
-import { SearchElasticReaderService } from './search-elastic-reader.service';
 import { SearchExecutionService } from './search-execution.service';
 import { SearchQueryService } from './search-query.service';
-import { TransactionSearchQueryBuilderService } from './transaction-search-query-builder.service';
+import { TransactionSearchQueryBuilderService } from '../../infrastructure/elastic/builders/transaction-search-query-builder.service';
+import { SearchElasticReaderService } from '../../infrastructure/elastic/search-elastic-reader.service';
 
 describe('SearchQueryService', () => {
   function createSut() {

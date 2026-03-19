@@ -8,7 +8,7 @@ import {
 import type { AccountRepository } from '../../../accounts/domain';
 import type { ClientRepository } from '../../../clients/domain';
 import type { TransactionRepository } from '../../../transactions/domain';
-import { SearchIndexingService } from './search-indexing.service';
+import { SearchIndexingService } from '../../infrastructure/elastic/search-indexing.service';
 
 export interface SearchReindexSummary {
   clients: number;
