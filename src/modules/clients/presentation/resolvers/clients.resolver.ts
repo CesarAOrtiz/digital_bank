@@ -1,6 +1,6 @@
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { PaginationInput } from '../../../../common/presentation/inputs/pagination.input';
-import { ClientsService } from '../../application/clients.service';
+import { ClientsService } from '../../application/services/clients.service';
 import { CreateClientInput } from '../inputs/create-client.input';
 import { ClientGraphqlMapper } from '../mappers/client-graphql.mapper';
 import { ClientGraphqlModel } from '../models/client.model';
